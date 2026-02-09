@@ -83,7 +83,6 @@ Wallet has verified the provider account AND meets all trait requirements.
 ```json
 {
   "token": "abc123...",
-  "signature": "def456...",
   "action": "claim_airdrop",
   "wallet": "0x1234..."
 }
@@ -92,7 +91,6 @@ Wallet has verified the provider account AND meets all trait requirements.
 | Field | Type | Description |
 | :---- | :---- | :---- |
 | `token` | string | Deterministic verification token (for Sybil resistance). Same provider account + same action = same token. |
-| `signature` | string | Signature from Base Verify |
 | `action` | string | The custom action you specified in the SIWE message (e.g., `claim_airdrop`, `join_allowlist`). Different actions produce different tokens. See [Core Concepts](/docs/core-concepts#action). |
 | `wallet` | string | User's wallet address |
 

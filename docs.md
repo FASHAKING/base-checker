@@ -598,7 +598,6 @@ curl -X POST https://verify.base.dev/v1/base_verify_token \
 ```ts
 {
   token: string,        // Deterministic verification token (for Sybil resistance)
-  signature: string,    // Signature from Base Verify
   action: string,       // Action from SIWE message
   wallet: string        // User's wallet address
 }
@@ -1016,7 +1015,6 @@ When you call `/v1/base_verify_token`, you receive:
 ```json
 {
   "token": "abc123...",      // Deterministic verification token
-  "signature": "def456...",  // Signature from Base Verify
   "action": "base_verify_token",
   "wallet": "0x1234..."      // User's wallet address
 }

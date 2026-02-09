@@ -30,7 +30,6 @@ When you call `/v1/base_verify_token`, you receive:
 ```json
 {
   "token": "abc123...",
-  "signature": "def456...",
   "action": "claim_airdrop",
   "wallet": "0x1234..."
 }
