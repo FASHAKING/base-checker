@@ -39,7 +39,13 @@ type OnchainToken = {
 const ACTION = 'my_app_airdrop_2026'
 
 function parseTxError(error: Error): string {
-  const str = error.message + JSON.stringify(error)
+  // Walk the full error + cause chain as strings — viem nests custom error names in cause.
+  let str = ''
+  let e: unknown = error
+  while (e instanceof Error) {
+    str += e.message + ' '
+    e = (e as any).cause
+  }
   if (str.includes('AlreadyClaimed')) return 'This identity has already claimed. Each Coinbase account can only claim once.'
   if (str.includes('InvalidVerification')) return 'Token expired or invalid. Please try again.'
   if (str.includes('User rejected') || str.includes('user rejected') || str.includes('denied')) return ''
