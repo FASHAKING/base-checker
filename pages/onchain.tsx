@@ -38,10 +38,11 @@ type OnchainToken = {
 
 const ACTION = 'my_app_airdrop_2026'
 
-function parseTxError(message: string): string {
-  if (message.includes('AlreadyClaimed')) return 'This identity has already claimed. Each Coinbase account can only claim once.'
-  if (message.includes('InvalidVerification')) return 'Token expired or invalid. Please try again.'
-  if (message.includes('User rejected') || message.includes('user rejected')) return ''
+function parseTxError(error: Error): string {
+  const str = error.message + JSON.stringify(error)
+  if (str.includes('AlreadyClaimed')) return 'This identity has already claimed. Each Coinbase account can only claim once.'
+  if (str.includes('InvalidVerification')) return 'Token expired or invalid. Please try again.'
+  if (str.includes('User rejected') || str.includes('user rejected') || str.includes('denied')) return ''
   return 'Transaction failed. Please try again.'
 }
 
@@ -203,7 +204,7 @@ export default function OnchainPage() {
   const claimTxError = isTxError
     ? 'Transaction failed. If you have already claimed, this identity cannot claim again.'
     : writeError
-    ? parseTxError(writeError.message)
+    ? parseTxError(writeError)
     : ''
 
   // Notify on tx success
