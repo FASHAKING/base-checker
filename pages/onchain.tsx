@@ -1,6 +1,8 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useAccount, useSignMessage, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { createPublicClient, http } from 'viem'
+import { baseSepolia } from 'viem/chains'
 import { useState, useEffect } from 'react'
 import { Layout } from '../components/Layout'
 import { generateSignature } from '../lib/signature-generator'
@@ -22,6 +24,13 @@ const AIRDROP_ABI = [
     outputs: [],
     stateMutability: 'nonpayable',
   },
+  {
+    name: 'claimed',
+    type: 'function',
+    inputs: [{ name: '', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'view',
+  },
   { name: 'AlreadyClaimed', type: 'error', inputs: [] },
   { name: 'InvalidVerification', type: 'error', inputs: [] },
 ] as const
@@ -37,6 +46,9 @@ type OnchainToken = {
 }
 
 const ACTION = 'my_app_airdrop_2026'
+
+// Read-only client for the dedup pre-check.
+const publicClient = createPublicClient({ chain: baseSepolia, transport: http() })
 
 function parseTxError(error: Error): string {
   // Walk the full error + cause chain as strings — viem nests custom error names in cause.
@@ -178,6 +190,18 @@ export default function OnchainPage() {
 
       const { token }: { token: OnchainToken } = await response.json()
       setIsAutoVerification(false)
+
+      // Pre-check on-chain dedup so duplicates show a clear message instead of a raw wallet revert.
+      const alreadyClaimed = await publicClient.readContract({
+        address: config.claimContractAddress as `0x${string}`,
+        abi: AIRDROP_ABI,
+        functionName: 'claimed',
+        args: [token.uniqueHash as `0x${string}`],
+      })
+      if (alreadyClaimed) {
+        setClaimError('This identity has already claimed. Each Coinbase account can only claim once.')
+        return
+      }
 
       // Step 3: submit the claim tx to the consumer contract on Base Sepolia.
       writeContract({
