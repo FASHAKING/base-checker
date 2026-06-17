@@ -16,6 +16,6 @@ export const config = {
   appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://baseverifydemo.com',
 
   // Onchain claim contract (SybilResistantAirdrop on Base Sepolia — see PRIV-1964 for mainnet migration)
-  claimContractAddress: process.env.NEXT_PUBLIC_CLAIM_CONTRACT_ADDRESS || '0x948613155cA773b07E3Bee711cb8b261443fe674',
+  claimContractAddress: process.env.NEXT_PUBLIC_CLAIM_CONTRACT_ADDRESS || '0x1Bef27589187431eAfE41F807f0bEF5679134f89',
   claimChainId: parseInt(process.env.NEXT_PUBLIC_CLAIM_CHAIN_ID || '84532', 10),
 }
