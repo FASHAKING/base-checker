@@ -1,26 +1,13 @@
 "use client";
 
 import { OnchainKitProvider } from "@coinbase/onchainkit";
-import { PropsWithChildren, useEffect } from "react";
-import { base, baseSepolia } from "wagmi/chains";
-import { useAccount, useSwitchChain } from "wagmi";
+import { PropsWithChildren } from "react";
+import { baseSepolia } from "wagmi/chains";
 import { onchainKitConfig } from "../lib/onchainkit-config";
 
-function SepoliaChainScope({ children }: PropsWithChildren) {
-  const { isConnected } = useAccount();
-  const { switchChain } = useSwitchChain();
-
-  useEffect(() => {
-    if (!isConnected) return;
-    switchChain({ chainId: baseSepolia.id });
-    return () => {
-      switchChain({ chainId: base.id });
-    };
-  }, [isConnected, switchChain]);
-
-  return children;
-}
-
+// Sepolia OnchainKit context for /onchain only. Chain switches for txs are
+// handled per call (writeContract chainId); avoid switchChain here — it races
+// wagmi's connection state and breaks signMessage with ConnectorChainMismatchError.
 export function OnchainSepoliaProviders({ children }: PropsWithChildren) {
   return (
     <OnchainKitProvider
@@ -28,7 +15,7 @@ export function OnchainSepoliaProviders({ children }: PropsWithChildren) {
       chain={baseSepolia}
       config={onchainKitConfig}
     >
-      <SepoliaChainScope>{children}</SepoliaChainScope>
+      {children}
     </OnchainKitProvider>
   );
 }

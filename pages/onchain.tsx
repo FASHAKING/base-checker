@@ -1,8 +1,8 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
-import { useAccount, useSignMessage, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useSignMessage, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { createPublicClient, http } from 'viem'
-import { baseSepolia } from 'viem/chains'
+import { base, baseSepolia } from 'viem/chains'
 import { useState, useEffect } from 'react'
 import { Layout } from '../components/Layout'
 import { generateSignature } from '../lib/signature-generator'
@@ -84,8 +84,9 @@ export default function OnchainPage() {
 
 function OnchainPageContent() {
   const router = useRouter()
-  const { address, isConnected } = useAccount()
+  const { address, isConnected, chainId } = useAccount()
   const { signMessage } = useSignMessage()
+  const { switchChainAsync } = useSwitchChain()
   const { showToast } = useToast()
 
   const [isClaiming, setIsClaiming] = useState(false)
@@ -176,10 +177,17 @@ function OnchainPageContent() {
     if (cachedSignature && verifySignatureCache.isValidForAddress(address, ACTION, 'coinbase')) {
       signature = cachedSignature
     } else {
+      // SIWE uses Base mainnet (same as other demo pages). Sync wallet first so
+      // wagmi connection.chainId matches the connector before signMessage.
+      if (chainId !== base.id) {
+        await switchChainAsync({ chainId: base.id })
+      }
+
       signature = await generateSignature({
         action: ACTION,
         provider: 'coinbase',
         traits: {},
+        chainId: base.id,
         signMessageFunction: async (message: string) =>
           new Promise<string>((resolve, reject) =>
             signMessage({ message }, { onSuccess: resolve, onError: reject })
