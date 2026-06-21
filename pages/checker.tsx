@@ -138,6 +138,7 @@ export default function CheckerPage() {
           name="description"
           content="Check any Base mainnet wallet or basename against a unified airdrop eligibility rubric."
         />
+        <link rel="icon" href="/base-logo.svg" type="image/svg+xml" />
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&display=swap"
           rel="stylesheet"
@@ -152,12 +153,53 @@ export default function CheckerPage() {
           fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
         }}
       >
+        {/* Top brand bar */}
+        <div
+          style={{
+            maxWidth: 1100,
+            margin: '0 auto',
+            padding: '1.25rem 1.5rem 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="/base-logo.svg" alt="Base" width={24} height={24} />
+            <span
+              style={{
+                fontFamily: '"Lora", Georgia, serif',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                color: C.text,
+                letterSpacing: '0.01em',
+              }}
+            >
+              <span style={{ color: C.accent }}>$BASE</span> Calculator
+            </span>
+          </div>
+          <a
+            href="https://github.com/FASHAKING/base-checker"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: '0.7rem',
+              color: C.textMute,
+              textDecoration: 'none',
+              fontWeight: 600,
+              letterSpacing: '0.05em',
+            }}
+          >
+            VIEW SOURCE →
+          </a>
+        </div>
+
         {/* Top search bar */}
         <div
           style={{
             maxWidth: 1100,
             margin: '0 auto',
-            padding: '1.5rem 1.5rem 0',
+            padding: '1rem 1.5rem 0',
           }}
         >
           <div
@@ -273,6 +315,13 @@ export default function CheckerPage() {
         >
           {/* LEFT: title, description, economics */}
           <div>
+            <img
+              src="/base-logo.svg"
+              alt="Base"
+              width={44}
+              height={44}
+              style={{ display: 'block', marginBottom: '1rem' }}
+            />
             <h1
               style={{
                 fontFamily: '"Lora", Georgia, serif',
@@ -283,7 +332,7 @@ export default function CheckerPage() {
                 color: C.text,
               }}
             >
-              <span style={{ color: C.gold }}>$BASE</span>
+              <span style={{ color: C.accent }}>$BASE</span>
               <br />
               Airdrop
               <br />
