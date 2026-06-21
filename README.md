@@ -387,13 +387,23 @@ Pipes the `/checker` eligibility score through a tunable airdrop economic model 
 
 ### Default parameters (all user-adjustable on the page)
 
+Calibrated against actual L2 launches: ARB ($1.40 launch / $14B FDV → $0.40 now), OP ($1.80 / $8B → $1.50), ZK ($0.22 / $5B → $0.06), ZRO ($4.50 / $4.5B → $2.50), STRK ($2.00 / $20B → $0.20). L2 tokens have historically lost 45–90% within months of launch.
+
 | Parameter | Default | Why |
 |---|---|---|
-| Total supply | 1,000,000,000 ($BASE) | Spec default; matches OP scale, under ZK |
+| Total supply | 1,000,000,000 ($BASE) | Spec default; matches ZRO exactly |
 | Airdrop % | 10% | Mean of ARB 11.62% / OP 5% / ZK 17.5% / ZRO 8.5% |
-| FDV at launch | $5,000,000,000 | Conservative middle vs. ARB $12B / OP $8B / ZK $8B / ZRO $6B |
-| Assumed eligible wallets | 500,000 | Between ARB ~625k and OP ~250k |
+| FDV at launch | **$3,000,000,000** | Between JUP ($6.5B) and ZK ($5B). Realistic for current market — not the 2023–24 launch peak |
+| Assumed eligible wallets | **700,000** | Median of ARB 625k / OP 250k / ZK 700k / ZRO 1.28M / STRK 1.35M |
 | Tier multipliers | Whale 8× · High 3× · Medium 1× · Low 0.25× · Ineligible 0× | Models the curve — top users get ~32× a low-tier wallet, matching ARB's tiered structure |
+
+### Scenarios (one-click presets on the page)
+
+| Scenario | FDV | Wallets | Token price | Models |
+|---|---|---|---|---|
+| **Bear / sustained** | $1B | 1M | $1.00 | The realistic 6-month post-launch price after airdrop sell pressure |
+| **Base case** (default) | $3B | 700k | $3.00 | Current market launch, between JUP and ZK |
+| **Bull / launch day** | $6B | 500k | $6.00 | Strong launch closer to ZRO ($4.5B) or OP ($8B) |
 
 ### Formula
 
@@ -410,15 +420,17 @@ The in-tier bonus (0.7×–1.3×) prevents two whales with very different scores
 
 ### Default math walk-through
 
-With defaults: pool = 100M $BASE, token price = $5, base allocation = 200 $BASE.
+With **Base case** defaults: pool = 100M $BASE, token price = **$3**, base allocation = ~143 $BASE.
 
-| Tier | Multiplier | Range (with in-tier bonus) | USD value @ $5 |
-|---|---|---|---|
-| Ineligible | 0× | 0 $BASE | $0 |
-| Low | 0.25× | 35 – 65 $BASE | $175 – $325 |
-| Medium | 1× | 140 – 260 $BASE | $700 – $1,300 |
-| High | 3× | 420 – 780 $BASE | $2,100 – $3,900 |
-| Whale | 8× | 1,120 – 2,080 $BASE | $5,600 – $10,400 |
+| Tier | Multiplier | Range (with in-tier bonus) | USD @ $3 (base) | USD @ $1 (bear) | USD @ $6 (bull) |
+|---|---|---|---|---|---|
+| Ineligible | 0× | 0 $BASE | $0 | $0 | $0 |
+| Low | 0.25× | 25 – 46 $BASE | $75 – $138 | $25 – $46 | $150 – $276 |
+| Medium | 1× | 100 – 186 $BASE | $300 – $558 | $100 – $186 | $600 – $1,116 |
+| High | 3× | 300 – 558 $BASE | $900 – $1,674 | $300 – $558 | $1,800 – $3,348 |
+| Whale | 8× | 800 – 1,486 $BASE | $2,400 – $4,458 | $800 – $1,486 | $4,800 – $8,916 |
+
+These figures align with what actual users received in comparable drops (ARB whale tier was ~$5–10k, OP power users $3–8k, ZRO whales $3–8k).
 
 ---
 

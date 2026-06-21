@@ -5,6 +5,7 @@ import { Layout } from '../components/Layout'
 import {
   AllocationParams,
   DEFAULT_PARAMS,
+  SCENARIOS,
   estimateAllocation,
   formatCompactNumber,
   formatUsd,
@@ -131,33 +132,66 @@ export default function AllocationPage() {
         {/* Economic parameters */}
         <Card>
           <SectionTitle>Airdrop economics</SectionTitle>
+
+          {/* Scenario picker */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+            {Object.entries(SCENARIOS).map(([key, scenario]) => (
+              <button
+                key={key}
+                onClick={() => setParams((p) => ({ ...p, ...scenario }))}
+                style={{
+                  flex: 1,
+                  minWidth: 100,
+                  padding: '0.5rem 0.75rem',
+                  background: 'white',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 8,
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: '#374151',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+                title={scenario.note}
+              >
+                {scenario.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: '0.7rem', color: '#6b7280', marginBottom: 12, padding: 8, background: '#f9fafb', borderRadius: 6, lineHeight: 1.4 }}>
+            Real launches for context: <strong>ARB</strong> $1.40 launch ($14B FDV) → $0.40 now ·{' '}
+            <strong>OP</strong> $1.80 ($8B) → $1.50 · <strong>ZK</strong> $0.22 ($5B) → $0.06 ·{' '}
+            <strong>ZRO</strong> $4.50 ($4.5B) → $2.50 · <strong>STRK</strong> $2.00 ($20B) → $0.20.
+            L2 tokens typically lose 45-90% within months of launch.
+          </div>
+
           <NumberRow
             label="Total $BASE supply"
             value={params.totalSupply}
             onChange={(v) => updateParam('totalSupply', v)}
             suffix="tokens"
-            hint="Default: 1B"
+            hint="ZRO 1B · ARB 10B · OP 4.3B · ZK 21B"
           />
           <NumberRow
             label="Airdrop allocation"
             value={params.airdropPct * 100}
             onChange={(v) => updateParam('airdropPct', v / 100)}
             suffix="%"
-            hint="Avg of ARB/OP/ZK/ZRO ≈ 10%"
+            hint="Mean of ARB 11.6% / OP 5% / ZK 17.5% / ZRO 8.5% ≈ 10%"
           />
           <NumberRow
             label="FDV at launch"
             value={params.fdvUsd}
             onChange={(v) => updateParam('fdvUsd', v)}
             suffix="USD"
-            hint="ARB $12B · OP $8B · ZK $8B · ZRO $6B → conservative default $5B"
+            hint="Default $3B (between JUP $6.5B and ZK $5B). Bull case $6B. Sustained 6-mo: $1B."
           />
           <NumberRow
             label="Assumed eligible wallets"
             value={params.eligibleWallets}
             onChange={(v) => updateParam('eligibleWallets', v)}
             suffix="wallets"
-            hint="ARB ~625k · OP ~250k → default 500k"
+            hint="ARB 625k · OP 250k · ZK 700k · ZRO 1.28M · STRK 1.35M → median 700k"
           />
 
           <button
@@ -268,14 +302,18 @@ export default function AllocationPage() {
               the tier multiplier and modulates by where you scored within the tier (0.7–1.3×).
               All parameters are tunable above.
             </p>
-            <SectionTitle style={{ marginTop: 16 }}>Defaults sourced from</SectionTitle>
+            <SectionTitle style={{ marginTop: 16 }}>Defaults sourced from real L2 launches</SectionTitle>
             <ul style={{ fontSize: '0.8rem', color: '#4b5563', lineHeight: 1.6, margin: 0, paddingLeft: 18 }}>
-              <li>Total supply 1B — your spec</li>
-              <li>Airdrop 10% — mean of ARB (11.6%) / OP (5%) / ZK (17.5%) / ZRO (8.5%)</li>
-              <li>FDV $5B — conservative middle vs. ARB $12B / OP $8B / ZK $8B / ZRO $6B</li>
-              <li>500k wallets — between ARB 625k and OP 250k</li>
-              <li>Tier curve 8× / 3× / 1× / 0.25× — modeled on ARB's tiered structure</li>
+              <li><strong>Supply 1B</strong> — your spec; matches ZRO exactly</li>
+              <li><strong>Airdrop 10%</strong> — mean of ARB 11.6% / OP 5% / ZK 17.5% / ZRO 8.5%</li>
+              <li><strong>FDV $3B</strong> — between JUP ($6.5B) and ZK ($5B). Sustained 6-mo prices have averaged 40-60% of launch FDV, so $3B is closer to the realistic "what the market gives you" number than the launch-day euphoria peak</li>
+              <li><strong>700k eligible wallets</strong> — median of ARB 625k / OP 250k / ZK 700k / ZRO 1.28M / STRK 1.35M</li>
+              <li><strong>Tier curve 8× / 3× / 1× / 0.25×</strong> — modeled on ARB's tiered structure</li>
             </ul>
+            <div style={{ marginTop: 12, padding: 10, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, fontSize: '0.75rem', color: '#92400e', lineHeight: 1.4 }}>
+              <strong>Honest note:</strong> every major L2 token lost 45–90% within months of launch
+              (ARB -70%, ZK -70%+, STRK -90%). Use the &quot;Bear / sustained&quot; scenario above to model what you'd actually be holding 6 months in, not what it briefly traded at on day 1.
+            </div>
           </Card>
         )}
       </div>

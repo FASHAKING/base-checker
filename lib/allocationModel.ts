@@ -19,14 +19,38 @@ export type AllocationParams = {
 export const DEFAULT_PARAMS: AllocationParams = {
   totalSupply: 1_000_000_000,
   airdropPct: 0.10,
-  fdvUsd: 5_000_000_000,
-  eligibleWallets: 500_000,
+  fdvUsd: 3_000_000_000,
+  eligibleWallets: 700_000,
   multipliers: {
     ineligible: 0,
     low: 0.25,
     medium: 1,
     high: 3,
     whale: 8,
+  },
+}
+
+// Pre-baked scenarios users can one-click between.
+// Numbers calibrated against actual L2 launches: ARB ($14B FDV → $4B now),
+// OP ($8B → $6B), ZK ($5B → $1.3B), ZRO ($4.5B → $2.5B), STRK ($20B → $2B).
+export const SCENARIOS: Record<string, Partial<AllocationParams> & { label: string; note: string }> = {
+  bear: {
+    label: 'Bear / sustained',
+    note: 'Post-airdrop sell pressure has historically taken L2 tokens down 45–90% from launch. Models the realistic 6-month price.',
+    fdvUsd: 1_000_000_000,
+    eligibleWallets: 1_000_000,
+  },
+  base: {
+    label: 'Base case',
+    note: 'Default. FDV between JUP ($6.5B) and ZK ($5B). Reflects current market, not the 2023 launch peak.',
+    fdvUsd: 3_000_000_000,
+    eligibleWallets: 700_000,
+  },
+  bull: {
+    label: 'Bull / launch day',
+    note: 'Models a strong launch — closer to ZRO ($4.5B) or OP ($8B) launch FDV. Optimistic given current conditions.',
+    fdvUsd: 6_000_000_000,
+    eligibleWallets: 500_000,
   },
 }
 
