@@ -2,7 +2,7 @@ import Head from 'next/head'
 import { useState } from 'react'
 import { useAccount } from 'wagmi'
 import { Layout } from '../components/Layout'
-import { CRITERIA, SYBIL_FLAGS } from '../lib/baseCheckerCriteria'
+import { CRITERIA, BONUS_CRITERIA, SYBIL_FLAGS } from '../lib/baseCheckerCriteria'
 
 type Metric = {
   id: string
@@ -28,10 +28,14 @@ type Result = {
   address: string
   totalScore: number
   maxScore: number
+  bonusScore: number
+  bonusMaxScore: number
   tier: 'ineligible' | 'low' | 'medium' | 'high' | 'whale'
   metrics: Metric[]
+  bonusMetrics: Metric[]
   sybilFlags: SybilHit[]
   identity: { hasBaseVerify: boolean; provider: string | null; tokenTaken: boolean }
+  baseApp: { provided: boolean; address: string | null; isSmartContract: boolean; txCount: number }
   dataSources: { rpc: boolean; basescan: boolean }
   warnings: string[]
 }
@@ -47,16 +51,19 @@ const TIER_COLORS: Record<Result['tier'], { bg: string; fg: string; label: strin
 export default function CheckerPage() {
   const { address: connected } = useAccount()
   const [input, setInput] = useState('')
+  const [baseAppInput, setBaseAppInput] = useState('')
   const [result, setResult] = useState<Result | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const runCheck = async (addr: string) => {
+  const runCheck = async (addr: string, baseApp: string) => {
     setError('')
     setResult(null)
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/check-wallet?address=${encodeURIComponent(addr)}`)
+      const params = new URLSearchParams({ address: addr })
+      if (baseApp) params.set('baseApp', baseApp)
+      const res = await fetch(`/api/check-wallet?${params.toString()}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Check failed')
       setResult(data)
@@ -105,40 +112,74 @@ export default function CheckerPage() {
             borderRadius: 16,
             padding: '1rem',
             display: 'flex',
-            gap: '0.5rem',
+            flexDirection: 'column',
+            gap: '0.75rem',
             marginBottom: '1.5rem',
             boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
           }}
         >
-          <input
-            type="text"
-            placeholder={connected ? `Default: ${connected.slice(0, 8)}…${connected.slice(-6)}` : '0x…'}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            style={{
-              flex: 1,
-              padding: '0.65rem 0.75rem',
-              border: '1px solid #d1d5db',
-              borderRadius: 10,
-              fontSize: '0.9rem',
-              fontFamily: 'monospace',
-              outline: 'none',
-            }}
-          />
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>
+              Wallet address (required)
+            </label>
+            <input
+              type="text"
+              placeholder={connected ? `Default: ${connected.slice(0, 8)}…${connected.slice(-6)}` : '0x…'}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.65rem 0.75rem',
+                border: '1px solid #d1d5db',
+                borderRadius: 10,
+                fontSize: '0.9rem',
+                fontFamily: 'monospace',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>
+              Base App / Smart Wallet address <span style={{ color: '#9ca3af', fontWeight: 400 }}>— optional, for bonus points</span>
+            </label>
+            <input
+              type="text"
+              placeholder="0x… (Coinbase Smart Wallet embedded in Base App)"
+              value={baseAppInput}
+              onChange={(e) => setBaseAppInput(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.65rem 0.75rem',
+                border: '1px solid #d1d5db',
+                borderRadius: 10,
+                fontSize: '0.9rem',
+                fontFamily: 'monospace',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 4 }}>
+              We detect if it's a smart contract wallet and credit you for activity + linked mini apps.
+            </div>
+          </div>
+
           <button
-            onClick={() => runCheck(targetAddress)}
+            onClick={() => runCheck(targetAddress, baseAppInput.trim())}
             disabled={isLoading || !targetAddress}
             style={{
-              padding: '0.65rem 1.25rem',
+              padding: '0.75rem 1.25rem',
               background: isLoading || !targetAddress ? '#f3f4f6' : '#0052FF',
               color: isLoading || !targetAddress ? '#9ca3af' : 'white',
               border: 'none',
               borderRadius: 10,
               fontWeight: 600,
               cursor: isLoading || !targetAddress ? 'not-allowed' : 'pointer',
+              fontSize: '0.95rem',
             }}
           >
-            {isLoading ? 'Checking…' : 'Check'}
+            {isLoading ? 'Checking…' : 'Check eligibility'}
           </button>
         </div>
 
@@ -243,6 +284,54 @@ export default function CheckerPage() {
               </div>
             </div>
 
+            {/* Bonus criteria — Base App / Mini Apps */}
+            <div style={{ background: 'white', borderRadius: 16, border: '1px solid #c7d2fe', padding: '1rem', marginBottom: '1rem' }}>
+              <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: '#1a1a1a' }}>
+                Bonus credit
+                <span style={{ marginLeft: 8, fontSize: '0.75rem', padding: '2px 8px', borderRadius: 6, background: '#e0e7ff', color: '#3730a3', fontWeight: 600 }}>
+                  +{result.bonusScore} / {result.bonusMaxScore} pts
+                </span>
+              </h3>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0 0 0.75rem' }}>
+                Optional credit for Base App adoption and mini app usage. Not deducted if absent.
+              </p>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
+                {result.bonusMetrics.map((m) => {
+                  const pct = (m.pointsEarned / m.maxPoints) * 100
+                  return (
+                    <div key={m.id} style={{ padding: '0.75rem', border: '1px solid #f3f4f6', borderRadius: 10, background: '#fafafa' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                        <div style={{ fontWeight: 600, color: '#1a1a1a', fontSize: '0.9rem' }}>
+                          {m.name}
+                          <span style={{ marginLeft: 8, fontSize: '0.65rem', padding: '2px 6px', borderRadius: 6, background: '#e0e7ff', color: '#3730a3', textTransform: 'uppercase' }}>
+                            {m.category}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: pct >= 100 ? '#065f46' : pct > 0 ? '#1e40af' : '#9ca3af' }}>
+                          +{m.pointsEarned} / {m.maxPoints} pts
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#4b5563', marginBottom: 4 }}>
+                        Value: <strong>{m.displayValue}</strong> · Tier: {m.tierLabel}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+                        Inspired by: {m.inspiredBy.join(' · ')}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {result.baseApp.provided && (
+                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#4b5563', fontFamily: 'monospace', background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: 8 }}>
+                  Base App: {result.baseApp.address}
+                  {' · '}
+                  {result.baseApp.isSmartContract ? '✓ Smart Wallet' : '✗ EOA'}
+                  {' · '}
+                  {result.baseApp.txCount} txs
+                </div>
+              )}
+            </div>
+
             {/* Sybil */}
             <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '1rem', marginBottom: '1rem' }}>
               <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700, color: '#1a1a1a' }}>
@@ -298,6 +387,19 @@ export default function CheckerPage() {
                   <strong>{c.name}</strong> ({c.category}) — {c.description}
                   <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 2 }}>
                     {c.tiers.map((t) => `${t.label} = ${t.points}pt`).join(' · ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <h3 style={{ margin: '1rem 0 0.5rem', fontSize: '1rem', fontWeight: 700 }}>
+              Bonus credit (optional)
+            </h3>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              {BONUS_CRITERIA.map((c) => (
+                <div key={c.id} style={{ padding: '0.5rem 0.75rem', background: '#eef2ff', borderRadius: 8, fontSize: '0.8rem' }}>
+                  <strong>{c.name}</strong> ({c.category}) — {c.description}
+                  <div style={{ fontSize: '0.7rem', color: '#6366f1', marginTop: 2 }}>
+                    {c.tiers.map((t) => `${t.label} = +${t.points}pt`).join(' · ')}
                   </div>
                 </div>
               ))}

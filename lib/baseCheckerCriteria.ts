@@ -96,6 +96,37 @@ export const CRITERIA: Criterion[] = [
   },
 ]
 
+// Optional bonus criteria — only counted when the user opts in by providing
+// a Base App / Smart Wallet address or an FID. Not deducted if absent.
+export const BONUS_CRITERIA: Criterion[] = [
+  {
+    id: 'base_app_wallet',
+    name: 'Linked Base App / Smart Wallet',
+    category: 'identity',
+    description:
+      'Optional: paste your Base App embedded address. We detect smart-contract code and score its activity.',
+    inspiredBy: ['Base App (Coinbase Smart Wallet)', 'ERC-4337 smart-account adoption signal'],
+    tiers: [
+      { label: 'Smart wallet detected', threshold: 1, points: 1 },
+      { label: 'Smart wallet + active (≥5 txs)', threshold: 2, points: 2 },
+      { label: 'Smart wallet + heavy use (≥25 txs)', threshold: 3, points: 3 },
+    ],
+  },
+  {
+    id: 'mini_app_usage',
+    name: 'Base mini app engagement',
+    category: 'breadth',
+    description:
+      'Distinct mini apps from the curated registry that this wallet (or its linked Smart Wallet) has interacted with.',
+    inspiredBy: ['Base mini app platform', 'zkSync breadth bonus (unique protocols)'],
+    tiers: [
+      { label: '1+ mini app', threshold: 1, points: 1 },
+      { label: '3+ mini apps', threshold: 3, points: 2 },
+      { label: '5+ mini apps', threshold: 5, points: 3 },
+    ],
+  },
+]
+
 // Sybil flags subtract points or disqualify entirely.
 export type SybilFlag = {
   id: string

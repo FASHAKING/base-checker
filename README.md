@@ -340,13 +340,24 @@ A unified eligibility checker for **Base mainnet** wallets, synthesizing pattern
 | All activity within 1 calendar month despite ≥5 txs | Warning (-2) | Optimism repeat-user, zkSync pattern-similarity |
 | Identity already claimed from another wallet | Critical (-99) | Base Verify deterministic token (this repo) |
 
+### Bonus credit (optional, +6 pts max → 24 pts total)
+
+These are **opt-in** and never penalize a user for not having them.
+
+| # | Criterion | Tiers | How we detect |
+|---|---|---|---|
+| 7 | Linked Base App / Smart Wallet | detected (+1) · active 5+ txs (+2) · heavy 25+ txs (+3) | Optional second address field. Backend does `eth_getCode` — non-empty bytecode means it's a smart-contract wallet (Base App ships Coinbase Smart Wallet by default). |
+| 8 | Base mini app engagement | 1+ (+1) · 3+ (+2) · 5+ (+3) | Curated registry in `lib/miniAppRegistry.ts` — counts distinct mini app contracts the primary address (and linked Smart Wallet) has interacted with. |
+
+**Honest limitation on mini app tracking:** there is no public global signal for *"user X opened mini app Y."* The onchain registry approach only catches mini apps with onchain contracts the user actually transacts with. The registry ships empty so we don't fabricate addresses — populate it with the mini app contracts you want to credit users for. Future extension: accept a Farcaster FID and call Neynar API for off-chain mini app activity.
+
 ### Tiers
 
 - `0 pts` → **Ineligible**
-- `1–6 pts` → **Low** (minimal activity)
-- `7–10 pts` → **Medium** (active user)
-- `11–15 pts` → **High** (power user)
-- `16–18 pts` → **Whale** (top-tier)
+- `1–8 pts` → **Low** (minimal activity)
+- `9–14 pts` → **Medium** (active user)
+- `15–20 pts` → **High** (power user)
+- `21–24 pts` → **Whale** (top-tier)
 
 ### Architecture
 

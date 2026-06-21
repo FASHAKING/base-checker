@@ -2,7 +2,14 @@ import { createPublicClient, http, formatEther, isAddress } from 'viem'
 import { base } from 'viem/chains'
 import { config } from './config'
 import prisma from './prisma'
-import { CRITERIA, SYBIL_FLAGS, MAX_SCORE, scoreTier } from './baseCheckerCriteria'
+import {
+  CRITERIA,
+  BONUS_CRITERIA,
+  SYBIL_FLAGS,
+  MAX_SCORE,
+  scoreTier,
+} from './baseCheckerCriteria'
+import { MINI_APP_REGISTRY } from './miniAppRegistry'
 
 const publicClient = createPublicClient({
   chain: base,
@@ -72,13 +79,22 @@ export type CheckerResult = {
   address: string
   totalScore: number
   maxScore: number
+  bonusScore: number
+  bonusMaxScore: number
   tier: 'ineligible' | 'low' | 'medium' | 'high' | 'whale'
   metrics: CheckerMetric[]
+  bonusMetrics: CheckerMetric[]
   sybilFlags: CheckerSybilHit[]
   identity: {
     hasBaseVerify: boolean
     provider: string | null
     tokenTaken: boolean
+  }
+  baseApp: {
+    provided: boolean
+    address: string | null
+    isSmartContract: boolean
+    txCount: number
   }
   dataSources: {
     rpc: boolean
@@ -105,10 +121,23 @@ function distinctMonths(timestamps: number[]): number {
   return months.size
 }
 
-export async function checkWallet(addressRaw: string): Promise<CheckerResult> {
+export async function checkWallet(
+  addressRaw: string,
+  baseAppAddressRaw?: string,
+): Promise<CheckerResult> {
   if (!isAddress(addressRaw)) throw new Error('Invalid address')
   const address = addressRaw.toLowerCase() as `0x${string}`
   const warnings: string[] = []
+
+  // Optional secondary address (user's Base App / Smart Wallet)
+  let baseAppAddress: `0x${string}` | null = null
+  if (baseAppAddressRaw && baseAppAddressRaw.trim()) {
+    if (!isAddress(baseAppAddressRaw)) {
+      warnings.push('Base App address invalid — ignored.')
+    } else {
+      baseAppAddress = baseAppAddressRaw.toLowerCase() as `0x${string}`
+    }
+  }
 
   // 1. RPC checks (always available)
   let balanceWei = BigInt(0)
@@ -249,19 +278,122 @@ export async function checkWallet(addressRaw: string): Promise<CheckerResult> {
     // not a sybil flag per se — just no points on identity criterion
   }
 
-  // 6. Final score
+  // 6. Bonus: Base App / Smart Wallet detection + mini app engagement
+  let baseAppIsSmartContract = false
+  let baseAppTxCount = 0
+  let baseAppValue = 0
+  let baseAppDisplay = 'Not provided'
+
+  if (baseAppAddress && rpcOk) {
+    try {
+      const [code, nonce] = await Promise.all([
+        publicClient.getCode({ address: baseAppAddress }),
+        publicClient.getTransactionCount({ address: baseAppAddress }),
+      ])
+      baseAppIsSmartContract = !!code && code !== '0x'
+      baseAppTxCount = nonce
+      if (baseAppIsSmartContract) {
+        if (baseAppTxCount >= 25) {
+          baseAppValue = 3
+          baseAppDisplay = `Smart wallet, ${baseAppTxCount} txs`
+        } else if (baseAppTxCount >= 5) {
+          baseAppValue = 2
+          baseAppDisplay = `Smart wallet, ${baseAppTxCount} txs`
+        } else {
+          baseAppValue = 1
+          baseAppDisplay = `Smart wallet detected (${baseAppTxCount} txs)`
+        }
+      } else {
+        baseAppDisplay = 'EOA (not a smart wallet)'
+        warnings.push(
+          'Address provided as Base App wallet has no contract code — it is an EOA, not a Smart Wallet. No bonus awarded.',
+        )
+      }
+    } catch {
+      warnings.push('Base App wallet lookup failed.')
+    }
+  }
+
+  // Mini app engagement — count distinct registry contracts seen in tx history
+  // across the primary address (and optionally the Base App wallet).
+  let miniAppHits = 0
+  let miniAppDisplay = 'Registry empty (no mini apps configured)'
+  if (MINI_APP_REGISTRY.length === 0) {
+    warnings.push(
+      'Mini app registry is empty — no addresses configured. Populate lib/miniAppRegistry.ts to credit users for mini app usage.',
+    )
+  } else if (basescanOk) {
+    const registryLower = new Set(MINI_APP_REGISTRY.map((m) => m.address.toLowerCase()))
+    const touched = new Set<string>()
+    for (const tx of successfulOutgoingTxs) {
+      const to = tx.to.toLowerCase()
+      if (registryLower.has(to)) touched.add(to)
+    }
+    if (baseAppAddress) {
+      const aaList = await basescanTxList(baseAppAddress)
+      if (aaList) {
+        for (const tx of aaList) {
+          if (tx.isError !== '0') continue
+          const to = tx.to.toLowerCase()
+          if (registryLower.has(to)) touched.add(to)
+        }
+      }
+    }
+    miniAppHits = touched.size
+    miniAppDisplay = `${miniAppHits} mini app${miniAppHits === 1 ? '' : 's'}`
+  } else {
+    miniAppDisplay = 'BaseScan unavailable — cannot scan tx history'
+  }
+
+  const bonusValueByCriterion: Record<string, { value: number; display: string }> = {
+    base_app_wallet: { value: baseAppValue, display: baseAppDisplay },
+    mini_app_usage: { value: miniAppHits, display: miniAppDisplay },
+  }
+
+  const bonusMetrics: CheckerMetric[] = BONUS_CRITERIA.map((c) => {
+    const v = bonusValueByCriterion[c.id]
+    const tier = scoreTier(c, v.value)
+    const maxPoints = Math.max(...c.tiers.map((t) => t.points))
+    return {
+      id: c.id,
+      name: c.name,
+      category: c.category,
+      value: v.value,
+      displayValue: v.display,
+      tierLabel: tier.label,
+      pointsEarned: tier.points,
+      maxPoints,
+      inspiredBy: c.inspiredBy,
+    }
+  })
+  const bonusEarned = bonusMetrics.reduce((sum, m) => sum + m.pointsEarned, 0)
+  const bonusMax = BONUS_CRITERIA.reduce(
+    (sum, c) => sum + Math.max(...c.tiers.map((t) => t.points)),
+    0,
+  )
+
+  // 7. Final score (base + bonus, then minus sybil penalties)
   const earned = metrics.reduce((sum, m) => sum + m.pointsEarned, 0)
   const penalty = sybilFlags.reduce((sum, f) => sum + f.penalty, 0)
-  const totalScore = Math.max(0, earned - penalty)
+  const totalScore = Math.max(0, earned + bonusEarned - penalty)
 
   return {
     address,
     totalScore,
-    maxScore: MAX_SCORE,
-    tier: tierFromScore(totalScore, MAX_SCORE),
+    maxScore: MAX_SCORE + bonusMax,
+    bonusScore: bonusEarned,
+    bonusMaxScore: bonusMax,
+    tier: tierFromScore(totalScore, MAX_SCORE + bonusMax),
     metrics,
+    bonusMetrics,
     sybilFlags,
     identity: { hasBaseVerify, provider: identityProvider, tokenTaken },
+    baseApp: {
+      provided: !!baseAppAddress,
+      address: baseAppAddress,
+      isSmartContract: baseAppIsSmartContract,
+      txCount: baseAppTxCount,
+    },
     dataSources: { rpc: rpcOk, basescan: basescanOk },
     warnings,
   }
