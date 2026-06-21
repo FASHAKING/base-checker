@@ -1,7 +1,15 @@
 import Head from 'next/head'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Layout } from '../components/Layout'
 import { CRITERIA, BONUS_CRITERIA, SYBIL_FLAGS } from '../lib/baseCheckerCriteria'
+import {
+  AllocationParams,
+  DEFAULT_PARAMS,
+  SCENARIOS,
+  estimateAllocation,
+  formatCompactNumber,
+  formatUsd,
+} from '../lib/allocationModel'
 
 type Metric = {
   id: string
@@ -62,6 +70,18 @@ export default function CheckerPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Allocation model state (formerly /allocation page)
+  const [allocParams, setAllocParams] = useState<AllocationParams>(DEFAULT_PARAMS)
+  const [showAllocSettings, setShowAllocSettings] = useState(false)
+  const updateAlloc = <K extends keyof AllocationParams>(key: K, value: AllocationParams[K]) =>
+    setAllocParams((p) => ({ ...p, [key]: value }))
+  const projectedPrice = allocParams.fdvUsd / allocParams.totalSupply
+  const poolTokens = allocParams.totalSupply * allocParams.airdropPct
+  const estimate = useMemo(
+    () => (result ? estimateAllocation(result, allocParams) : null),
+    [result, allocParams],
+  )
+
   const runCheck = async (addr: string, baseApp: string, fid: string) => {
     setError('')
     setResult(null)
@@ -107,9 +127,28 @@ export default function CheckerPage() {
             Base Airdrop Checker
           </h2>
           <p style={{ fontSize: '0.95rem', color: '#666', margin: 0, lineHeight: 1.4 }}>
-            Score any Base mainnet wallet against a unified rubric blended from Arbitrum, Optimism,
-            zkSync, and LayerZero airdrops — plus the Base Verify identity layer from this repo.
+            Score any Base mainnet wallet, see your projected $BASE allocation at current FDV.
           </p>
+        </div>
+
+        {/* Live token economics — always visible */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #eff6ff 0%, #f3e8ff 100%)',
+            border: '1px solid #c7d2fe',
+            borderRadius: 16,
+            padding: '0.85rem 1rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            justifyContent: 'space-around',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <PriceStat label="FDV" value={formatUsd(allocParams.fdvUsd)} />
+          <PriceStat label="Supply" value={`${formatCompactNumber(allocParams.totalSupply)} $BASE`} />
+          <PriceStat label="$BASE price" value={formatUsd(projectedPrice)} highlight />
+          <PriceStat label="Airdrop pool" value={`${formatCompactNumber(poolTokens)} $BASE`} />
         </div>
 
         <div
@@ -307,6 +346,230 @@ export default function CheckerPage() {
                 {result.address}
               </div>
             </div>
+
+            {/* Allocation estimate */}
+            {estimate && (
+              <div
+                style={{
+                  background: estimate.eligible
+                    ? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)'
+                    : '#fef2f2',
+                  border: `1px solid ${estimate.eligible ? '#86efac' : '#fecaca'}`,
+                  borderRadius: 16,
+                  padding: '1.25rem',
+                  marginBottom: '1rem',
+                  textAlign: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: estimate.eligible ? '#065f46' : '#991b1b',
+                    fontWeight: 700,
+                    marginBottom: 4,
+                  }}
+                >
+                  Your projected $BASE allocation
+                </div>
+                <div
+                  style={{
+                    fontSize: '2.75rem',
+                    fontWeight: 800,
+                    color: estimate.eligible ? '#065f46' : '#991b1b',
+                    lineHeight: 1.1,
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {formatCompactNumber(estimate.userTokens)}
+                  <span style={{ fontSize: '1rem', opacity: 0.6, marginLeft: 6 }}>$BASE</span>
+                </div>
+                <div
+                  style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 700,
+                    color: estimate.eligible ? '#065f46' : '#991b1b',
+                    marginTop: 6,
+                  }}
+                >
+                  ≈ {formatUsd(estimate.userUsd)}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 4 }}>
+                  at {formatUsd(estimate.tokenPriceUsd)} / $BASE
+                </div>
+                {estimate.eligible && estimate.farcasterBoostMultiplier > 1 && (
+                  <div
+                    style={{
+                      display: 'inline-block',
+                      marginTop: 10,
+                      padding: '0.35rem 0.65rem',
+                      background: '#f3e8ff',
+                      border: '1px solid #d8b4fe',
+                      borderRadius: 8,
+                      fontSize: '0.75rem',
+                      color: '#6b21a8',
+                      fontWeight: 600,
+                    }}
+                  >
+                    🟣 Farcaster boost +{((estimate.farcasterBoostMultiplier - 1) * 100).toFixed(1)}%
+                  </div>
+                )}
+                {estimate.hitFloor && (
+                  <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#1e40af', fontWeight: 600 }}>
+                    ⬆️ Floored at {formatCompactNumber(allocParams.floorTokens)} $BASE — you cleared the bar
+                  </div>
+                )}
+                {estimate.hitCap && (
+                  <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#5b21b6', fontWeight: 600 }}>
+                    ⬇️ Capped at {formatCompactNumber(allocParams.whaleAnchorTokens)} $BASE 🎁 — max tier
+                  </div>
+                )}
+                {!estimate.eligible && (
+                  <div style={{ marginTop: 10, fontSize: '0.85rem', color: '#991b1b' }}>
+                    {estimate.failureReasons.map((r, i) => (
+                      <div key={i}>• {r}</div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowAllocSettings((s) => !s)}
+                  style={{
+                    marginTop: 12,
+                    background: 'none',
+                    border: 'none',
+                    color: '#0052FF',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  {showAllocSettings ? '▼ Hide tokenomics knobs' : '▶ Tune supply / FDV / cap'}
+                </button>
+              </div>
+            )}
+
+            {/* Allocation params (collapsible) */}
+            {showAllocSettings && (
+              <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '1rem', marginBottom: '1rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 700, color: '#1a1a1a' }}>
+                  Airdrop economics
+                </h3>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+                  {Object.entries(SCENARIOS).map(([key, scenario]) => (
+                    <button
+                      key={key}
+                      onClick={() => setAllocParams((p) => ({ ...p, ...scenario }))}
+                      style={{
+                        flex: 1,
+                        minWidth: 100,
+                        padding: '0.5rem 0.75rem',
+                        background: 'white',
+                        border: '1px solid #d1d5db',
+                        borderRadius: 8,
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: '#374151',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
+                      title={scenario.note}
+                    >
+                      {scenario.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: '#0052FF',
+                    fontWeight: 700,
+                    marginBottom: 8,
+                    paddingBottom: 6,
+                    borderBottom: '2px solid #dbeafe',
+                  }}
+                >
+                  🎛️ Main tokenomics knobs
+                </div>
+                <AllocNumberRow
+                  label="Total $BASE supply"
+                  value={allocParams.totalSupply}
+                  onChange={(v) => updateAlloc('totalSupply', v)}
+                  suffix="tokens"
+                  hint="ARB 10B · STRK 10B · JUP 10B · OP 4.3B · ZK 21B · ZRO 1B"
+                />
+                <AllocNumberRow
+                  label="Airdrop allocation (% of supply)"
+                  value={allocParams.airdropPct * 100}
+                  onChange={(v) => updateAlloc('airdropPct', v / 100)}
+                  suffix="%"
+                  hint="Mean of ARB 11.6% / OP 5% / ZK 17.5% / ZRO 8.5% ≈ 10%"
+                />
+                <AllocNumberRow
+                  label="FDV at launch"
+                  value={allocParams.fdvUsd}
+                  onChange={(v) => updateAlloc('fdvUsd', v)}
+                  suffix="USD"
+                  hint={`Projected price = ${formatUsd(projectedPrice)} per $BASE`}
+                />
+
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: '#6b7280',
+                    fontWeight: 700,
+                    marginTop: 16,
+                    marginBottom: 8,
+                    paddingBottom: 6,
+                    borderBottom: '1px solid #e5e7eb',
+                  }}
+                >
+                  Distribution shape
+                </div>
+                <AllocNumberRow
+                  label="Floor ($BASE min-eligible user gets)"
+                  value={allocParams.floorTokens}
+                  onChange={(v) => updateAlloc('floorTokens', v)}
+                  suffix="$BASE"
+                  hint={`= ${formatUsd(allocParams.floorTokens * projectedPrice)} at current FDV`}
+                />
+                <AllocNumberRow
+                  label="Whale cap ($BASE max) 🎁"
+                  value={allocParams.whaleAnchorTokens}
+                  onChange={(v) => updateAlloc('whaleAnchorTokens', v)}
+                  suffix="$BASE"
+                  hint={`= ${formatUsd(allocParams.whaleAnchorTokens * projectedPrice)} at current FDV`}
+                />
+                <AllocNumberRow
+                  label="Farcaster boost (max)"
+                  value={allocParams.farcasterBoostPct * 100}
+                  onChange={(v) => updateAlloc('farcasterBoostPct', v / 100)}
+                  suffix="%"
+                  hint="Multiplicative bonus when FID is linked. 0 = disabled, no penalty"
+                />
+                <button
+                  onClick={() => setAllocParams(DEFAULT_PARAMS)}
+                  style={{
+                    marginTop: 8,
+                    background: 'none',
+                    border: '1px solid #e5e7eb',
+                    color: '#6b7280',
+                    fontSize: '0.8rem',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Reset to defaults
+                </button>
+              </div>
+            )}
 
             {/* Warnings */}
             {result.warnings.length > 0 && (
@@ -512,6 +775,79 @@ function MinBadge({ label, passed, hint }: { label: string; passed: boolean; hin
         {passed ? '✓' : '✗'} {label}
       </div>
       <div style={{ fontSize: '0.6rem', color: '#6b7280', marginTop: 1 }}>{hint}</div>
+    </div>
+  )
+}
+
+function PriceStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div style={{ textAlign: 'center', minWidth: 100 }}>
+      <div
+        style={{
+          fontSize: '0.6rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          color: '#6b7280',
+          fontWeight: 600,
+          marginBottom: 3,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: highlight ? '1.3rem' : '1rem',
+          fontWeight: highlight ? 800 : 700,
+          color: highlight ? '#0052FF' : '#1a1a1a',
+          fontFamily: 'monospace',
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function AllocNumberRow({
+  label,
+  value,
+  onChange,
+  suffix,
+  hint,
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  suffix?: string
+  hint?: string
+}) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{label}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+            style={{
+              width: 140,
+              padding: '0.35rem 0.5rem',
+              border: '1px solid #d1d5db',
+              borderRadius: 6,
+              fontSize: '0.85rem',
+              fontFamily: 'monospace',
+              textAlign: 'right',
+              outline: 'none',
+            }}
+          />
+          {suffix && (
+            <span style={{ fontSize: '0.75rem', color: '#6b7280', minWidth: 40 }}>{suffix}</span>
+          )}
+        </div>
+      </div>
+      {hint && <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 2 }}>{hint}</div>}
     </div>
   )
 }
