@@ -209,6 +209,19 @@ export function Layout({ children, title = "Base Verify Demo" }: LayoutProps) {
               </button>
             </>
           )}
+          {!router.asPath.startsWith("/allocation") && (
+            <>
+              <span style={{ color: "#d1d5db", fontSize: "0.8rem" }}>•</span>
+              <button
+                onClick={() => router.push("/allocation")}
+                style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#1a1a1a"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#9ca3af"; }}
+              >
+                $BASE Allocation
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

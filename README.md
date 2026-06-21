@@ -381,6 +381,47 @@ These are **opt-in** and never penalize a user for not having them.
 
 ---
 
+## $BASE Allocation Estimator (`/allocation`)
+
+Pipes the `/checker` eligibility score through a tunable airdrop economic model to estimate a wallet's $BASE allocation in tokens and USD.
+
+### Default parameters (all user-adjustable on the page)
+
+| Parameter | Default | Why |
+|---|---|---|
+| Total supply | 1,000,000,000 ($BASE) | Spec default; matches OP scale, under ZK |
+| Airdrop % | 10% | Mean of ARB 11.62% / OP 5% / ZK 17.5% / ZRO 8.5% |
+| FDV at launch | $5,000,000,000 | Conservative middle vs. ARB $12B / OP $8B / ZK $8B / ZRO $6B |
+| Assumed eligible wallets | 500,000 | Between ARB ~625k and OP ~250k |
+| Tier multipliers | Whale 8× · High 3× · Medium 1× · Low 0.25× · Ineligible 0× | Models the curve — top users get ~32× a low-tier wallet, matching ARB's tiered structure |
+
+### Formula
+
+```
+pool        = totalSupply × airdropPct
+tokenPrice  = FDV / totalSupply
+baseAlloc   = pool / eligibleWallets
+inTierBonus = 0.7 + min(1, score/maxScore) × 0.6     # 0.7×..1.3×
+userTokens  = baseAlloc × tierMultiplier × inTierBonus
+userUsd     = userTokens × tokenPrice
+```
+
+The in-tier bonus (0.7×–1.3×) prevents two whales with very different scores from getting identical allocations.
+
+### Default math walk-through
+
+With defaults: pool = 100M $BASE, token price = $5, base allocation = 200 $BASE.
+
+| Tier | Multiplier | Range (with in-tier bonus) | USD value @ $5 |
+|---|---|---|---|
+| Ineligible | 0× | 0 $BASE | $0 |
+| Low | 0.25× | 35 – 65 $BASE | $175 – $325 |
+| Medium | 1× | 140 – 260 $BASE | $700 – $1,300 |
+| High | 3× | 420 – 780 $BASE | $2,100 – $3,900 |
+| Whale | 8× | 1,120 – 2,080 $BASE | $5,600 – $10,400 |
+
+---
+
 ## Get Started
 
 **Want to integrate Base Verify?** Fill out the [interest form](https://forms.gle/6L4hWAHkojYcefz27) and we'll reach out with API access.
