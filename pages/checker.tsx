@@ -68,6 +68,15 @@ export default function CheckerPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Collapsible state for result sections (mirrors the reference layout)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    criteria: true,
+    bonus: false,
+    sybil: false,
+  })
+  const toggleSection = (key: string) =>
+    setOpenSections((o) => ({ ...o, [key]: !o[key] }))
+
   // Allocation defaults are baked in — Base case parameters from DEFAULT_PARAMS.
   // No UI knobs; we just compute and display the estimate.
   const allocParams = DEFAULT_PARAMS
@@ -110,20 +119,70 @@ export default function CheckerPage() {
       </Head>
 
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <h2
+        {/* Hero */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem', paddingTop: '0.5rem' }}>
+          <div
             style={{
-              fontSize: 'clamp(1.75rem, 6vw, 2.5rem)',
-              fontWeight: 700,
-              color: '#1a1a1a',
-              margin: '0 0 0.5rem',
-              lineHeight: 1.1,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 12,
             }}
           >
-            Base Airdrop Checker
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: '#0052FF',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                fontSize: '1rem',
+                fontFamily: 'monospace',
+                boxShadow: '0 2px 8px rgba(0,82,255,0.25)',
+              }}
+            >
+              B
+            </div>
+            <div
+              style={{
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                letterSpacing: '0.18em',
+                color: '#0052FF',
+                textTransform: 'uppercase',
+              }}
+            >
+              Airdrop Calculator
+            </div>
+          </div>
+          <h2
+            style={{
+              fontSize: 'clamp(1.8rem, 5.5vw, 2.5rem)',
+              fontWeight: 800,
+              color: '#0a0a0a',
+              margin: '0 0 0.75rem',
+              lineHeight: 1.05,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Are you $BASE airdrop eligible?
           </h2>
-          <p style={{ fontSize: '0.95rem', color: '#666', margin: 0, lineHeight: 1.4 }}>
-            Score any Base mainnet wallet, see your projected $BASE allocation at current FDV.
+          <p
+            style={{
+              fontSize: '0.95rem',
+              color: '#555',
+              margin: '0 auto',
+              maxWidth: 560,
+              lineHeight: 1.5,
+            }}
+          >
+            Enter any wallet address to estimate a hypothetical $BASE airdrop — scored
+            against a unified rubric drawn from the Arbitrum, Optimism, zkSync, and
+            LayerZero drops, applied to your Base mainnet activity.
           </p>
         </div>
 
@@ -452,10 +511,14 @@ export default function CheckerPage() {
 
             {/* Metrics */}
             <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '1rem', marginBottom: '1rem' }}>
-              <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700, color: '#1a1a1a' }}>
-                Criteria
-              </h3>
-              <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <CollapsibleHeader
+                open={openSections.criteria}
+                onToggle={() => toggleSection('criteria')}
+                title="Criteria"
+                subtitle={`${result.totalScore - result.bonusScore} / ${result.maxScore - result.bonusMaxScore} pts`}
+              />
+              {openSections.criteria && (
+              <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.75rem' }}>
                 {result.metrics.map((m) => {
                   const pct = (m.pointsEarned / m.maxPoints) * 100
                   return (
@@ -481,17 +544,20 @@ export default function CheckerPage() {
                   )
                 })}
               </div>
+              )}
             </div>
 
             {/* Bonus criteria — Base App / Mini Apps */}
             <div style={{ background: 'white', borderRadius: 16, border: '1px solid #c7d2fe', padding: '1rem', marginBottom: '1rem' }}>
-              <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: '#1a1a1a' }}>
-                Bonus credit
-                <span style={{ marginLeft: 8, fontSize: '0.75rem', padding: '2px 8px', borderRadius: 6, background: '#e0e7ff', color: '#3730a3', fontWeight: 600 }}>
-                  +{result.bonusScore} / {result.bonusMaxScore} pts
-                </span>
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0 0 0.75rem' }}>
+              <CollapsibleHeader
+                open={openSections.bonus}
+                onToggle={() => toggleSection('bonus')}
+                title="Bonus credit"
+                subtitle={`+${result.bonusScore} / ${result.bonusMaxScore} pts`}
+              />
+              {openSections.bonus && (
+              <>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0.75rem 0' }}>
                 Optional credit for Base App adoption and mini app usage. Not deducted if absent.
               </p>
               <div style={{ display: 'grid', gap: '0.5rem' }}>
@@ -529,13 +595,20 @@ export default function CheckerPage() {
                   {result.baseApp.txCount} txs
                 </div>
               )}
+              </>
+              )}
             </div>
 
             {/* Sybil */}
             <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '1rem', marginBottom: '1rem' }}>
-              <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700, color: '#1a1a1a' }}>
-                Sybil flags
-              </h3>
+              <CollapsibleHeader
+                open={openSections.sybil}
+                onToggle={() => toggleSection('sybil')}
+                title="Sybil flags"
+                subtitle={result.sybilFlags.length === 0 ? '✓ Clean' : `${result.sybilFlags.length} triggered`}
+              />
+              {openSections.sybil && (
+              <div style={{ marginTop: '0.75rem' }}>
               {result.sybilFlags.length === 0 ? (
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#16a34a' }}>
                   ✓ No sybil flags triggered.
@@ -562,16 +635,45 @@ export default function CheckerPage() {
                   ))}
                 </div>
               )}
+              </div>
+              )}
             </div>
 
             {/* Data sources */}
-            <div style={{ fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.7rem', color: '#9ca3af', textAlign: 'center', marginBottom: '1.5rem' }}>
               Data sources: Base mainnet RPC {result.dataSources.rpc ? '✓' : '✗'} ·
               BaseScan {result.dataSources.basescan ? '✓' : '✗ (rate-limited or unconfigured)'} ·
-              Identity DB (Prisma)
+              Identity DB
             </div>
           </>
         )}
+
+        {/* Disclaimer + attribution */}
+        <div
+          style={{
+            marginTop: '2rem',
+            paddingTop: '1.25rem',
+            borderTop: '1px solid #e5e7eb',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0 0 0.5rem', lineHeight: 1.5 }}>
+            Hypothetical calculator. Not affiliated with Base, Coinbase, or any token issuer.
+            Scoring mirrors public eligibility patterns from the Arbitrum, Optimism, zkSync,
+            and LayerZero airdrops.
+          </p>
+          <p style={{ fontSize: '0.7rem', color: '#9ca3af', margin: 0 }}>
+            Built on{' '}
+            <a
+              href="https://github.com/FASHAKING/base-checker"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#0052FF', textDecoration: 'none', fontWeight: 600 }}
+            >
+              base-checker
+            </a>
+          </p>
+        </div>
 
         {!result && !isLoading && (
           <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '1.25rem' }}>
@@ -636,6 +738,73 @@ function MinBadge({ label, passed, hint }: { label: string; passed: boolean; hin
       </div>
       <div style={{ fontSize: '0.6rem', color: '#6b7280', marginTop: 1 }}>{hint}</div>
     </div>
+  )
+}
+
+function CollapsibleHeader({
+  open,
+  onToggle,
+  title,
+  subtitle,
+}: {
+  open: boolean
+  onToggle: () => void
+  title: string
+  subtitle?: string
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      type="button"
+      style={{
+        width: '100%',
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        margin: 0,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        fontFamily: 'inherit',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            background: open ? '#0052FF' : '#f3f4f6',
+            color: open ? 'white' : '#6b7280',
+            fontSize: '0.9rem',
+            fontWeight: 700,
+            lineHeight: 1,
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {open ? '−' : '+'}
+        </span>
+        <span style={{ fontSize: '1rem', fontWeight: 700, color: '#1a1a1a' }}>{title}</span>
+      </div>
+      {subtitle && (
+        <span
+          style={{
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: '#6b7280',
+            padding: '2px 8px',
+            borderRadius: 6,
+            background: '#f3f4f6',
+          }}
+        >
+          {subtitle}
+        </span>
+      )}
+    </button>
   )
 }
 
