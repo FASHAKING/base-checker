@@ -23,8 +23,9 @@ export const config = {
 
   // Base mainnet — used by /checker for L2-style eligibility scoring
   baseMainnetRpcUrl: process.env.BASE_MAINNET_RPC_URL || 'https://mainnet.base.org',
-  basescanApiUrl: process.env.BASESCAN_API_URL || 'https://api.basescan.org/api',
+  basescanApiUrl: process.env.BASESCAN_API_URL || 'https://api.etherscan.io/v2/api',
   basescanApiKey: process.env.BASESCAN_API_KEY || '',
+  basescanChainId: parseInt(process.env.BASESCAN_CHAIN_ID || '8453', 10),
 
   // Farcaster — used by /checker for FID-based bonus credit (via Neynar)
   neynarApiUrl: process.env.NEYNAR_API_URL || 'https://api.neynar.com/v2',
