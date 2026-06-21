@@ -125,6 +125,23 @@ export const BONUS_CRITERIA: Criterion[] = [
       { label: '5+ mini apps', threshold: 5, points: 3 },
     ],
   },
+  {
+    id: 'farcaster',
+    name: 'Farcaster identity (via FID)',
+    category: 'identity',
+    description:
+      'Optional: provide your Farcaster FID. We verify the wallet is in your verified addresses, then score by Power Badge / followers / FID age.',
+    inspiredBy: [
+      'Farcaster identity layer',
+      'Gitcoin Passport (Optimism allocations)',
+      'LayerZero quality-user signals',
+    ],
+    tiers: [
+      { label: 'FID linked to wallet', threshold: 1, points: 1 },
+      { label: '+ Power Badge or 1k+ followers', threshold: 2, points: 2 },
+      { label: '+ Early FID (≤200k)', threshold: 3, points: 3 },
+    ],
+  },
 ]
 
 // Sybil flags subtract points or disqualify entirely.

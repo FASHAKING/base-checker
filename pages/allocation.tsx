@@ -40,6 +40,7 @@ export default function AllocationPage() {
   const { address: connected } = useAccount()
   const [input, setInput] = useState('')
   const [baseAppInput, setBaseAppInput] = useState('')
+  const [fidInput, setFidInput] = useState('')
   const [params, setParams] = useState<AllocationParams>(DEFAULT_PARAMS)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [result, setResult] = useState<CheckerResult | null>(null)
@@ -55,6 +56,7 @@ export default function AllocationPage() {
     try {
       const qs = new URLSearchParams({ address: targetAddress })
       if (baseAppInput.trim()) qs.set('baseApp', baseAppInput.trim())
+      if (fidInput.trim()) qs.set('fid', fidInput.trim())
       const res = await fetch(`/api/check-wallet?${qs.toString()}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Check failed')
@@ -108,6 +110,9 @@ export default function AllocationPage() {
           <div style={{ height: 8 }} />
           <Label>Base App / Smart Wallet (optional)</Label>
           <Input value={baseAppInput} onChange={setBaseAppInput} placeholder="0x…" />
+          <div style={{ height: 8 }} />
+          <Label>Farcaster FID (optional)</Label>
+          <Input value={fidInput} onChange={setFidInput} placeholder="e.g. 3621" />
 
           <button
             onClick={runCheck}

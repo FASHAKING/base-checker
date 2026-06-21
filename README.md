@@ -340,7 +340,7 @@ A unified eligibility checker for **Base mainnet** wallets, synthesizing pattern
 | All activity within 1 calendar month despite ≥5 txs | Warning (-2) | Optimism repeat-user, zkSync pattern-similarity |
 | Identity already claimed from another wallet | Critical (-99) | Base Verify deterministic token (this repo) |
 
-### Bonus credit (optional, +6 pts max → 24 pts total)
+### Bonus credit (optional, +9 pts max → 27 pts total)
 
 These are **opt-in** and never penalize a user for not having them.
 
@@ -348,6 +348,9 @@ These are **opt-in** and never penalize a user for not having them.
 |---|---|---|---|
 | 7 | Linked Base App / Smart Wallet | detected (+1) · active 5+ txs (+2) · heavy 25+ txs (+3) | Optional second address field. Backend does `eth_getCode` — non-empty bytecode means it's a smart-contract wallet (Base App ships Coinbase Smart Wallet by default). |
 | 8 | Base mini app engagement | 1+ (+1) · 3+ (+2) · 5+ (+3) | Curated registry in `lib/miniAppRegistry.ts` — counts distinct mini app contracts the primary address (and linked Smart Wallet) has interacted with. |
+| 9 | Farcaster identity (via FID) | linked (+1) · + Power Badge or 1k+ followers (+2) · + early FID ≤200k (+3) | Optional FID field. Backend calls Neynar `/farcaster/user/bulk`, verifies the wallet is in the FID's `verified_addresses.eth_addresses` (anti-FID-claim sybil), then scores by Power Badge / follower count / FID age. |
+
+**Farcaster anti-sybil**: if the FID is provided but the queried wallet is **not** in its verified addresses, the bonus is **zero** with a warning surfaced. Prevents users from claiming any famous FID. Falls back gracefully when `NEYNAR_API_KEY` is unset.
 
 **Honest limitation on mini app tracking:** there is no public global signal for *"user X opened mini app Y."* The onchain registry approach only catches mini apps with onchain contracts the user actually transacts with. The registry ships empty so we don't fabricate addresses — populate it with the mini app contracts you want to credit users for. Future extension: accept a Farcaster FID and call Neynar API for off-chain mini app activity.
 

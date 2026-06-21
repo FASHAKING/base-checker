@@ -59,17 +59,19 @@ export default function CheckerPage() {
   const { address: connected } = useAccount()
   const [input, setInput] = useState('')
   const [baseAppInput, setBaseAppInput] = useState('')
+  const [fidInput, setFidInput] = useState('')
   const [result, setResult] = useState<Result | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const runCheck = async (addr: string, baseApp: string) => {
+  const runCheck = async (addr: string, baseApp: string, fid: string) => {
     setError('')
     setResult(null)
     setIsLoading(true)
     try {
       const params = new URLSearchParams({ address: addr })
       if (baseApp) params.set('baseApp', baseApp)
+      if (fid) params.set('fid', fid)
       const res = await fetch(`/api/check-wallet?${params.toString()}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Check failed')
@@ -172,8 +174,33 @@ export default function CheckerPage() {
             </div>
           </div>
 
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block', marginTop: 12 }}>
+              Farcaster FID <span style={{ color: '#9ca3af', fontWeight: 400 }}>— optional, for identity bonus</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 3621 (your numeric Farcaster ID)"
+              value={fidInput}
+              onChange={(e) => setFidInput(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.65rem 0.75rem',
+                border: '1px solid #d1d5db',
+                borderRadius: 10,
+                fontSize: '0.9rem',
+                fontFamily: 'monospace',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 4 }}>
+              We verify the wallet is one of your linked addresses via Neynar — random FIDs won't work.
+            </div>
+          </div>
+
           <button
-            onClick={() => runCheck(targetAddress, baseAppInput.trim())}
+            onClick={() => runCheck(targetAddress, baseAppInput.trim(), fidInput.trim())}
             disabled={isLoading || !targetAddress}
             style={{
               padding: '0.75rem 1.25rem',

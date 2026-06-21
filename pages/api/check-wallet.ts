@@ -8,12 +8,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const address = (req.query.address as string | undefined)?.trim()
   const baseAppAddress = (req.query.baseApp as string | undefined)?.trim()
+  const farcasterFid = (req.query.fid as string | undefined)?.trim()
   if (!address) {
     return res.status(400).json({ error: 'Missing address query param' })
   }
 
   try {
-    const result = await checkWallet(address, baseAppAddress)
+    const result = await checkWallet(address, baseAppAddress, farcasterFid)
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
     return res.status(200).json(result)
   } catch (err) {

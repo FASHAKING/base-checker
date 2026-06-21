@@ -25,6 +25,10 @@ export const config = {
   baseMainnetRpcUrl: process.env.BASE_MAINNET_RPC_URL || 'https://mainnet.base.org',
   basescanApiUrl: process.env.BASESCAN_API_URL || 'https://api.basescan.org/api',
   basescanApiKey: process.env.BASESCAN_API_KEY || '',
+
+  // Farcaster — used by /checker for FID-based bonus credit (via Neynar)
+  neynarApiUrl: process.env.NEYNAR_API_URL || 'https://api.neynar.com/v2',
+  neynarApiKey: process.env.NEYNAR_API_KEY || '',
 }
 
 const SEPOLIA_EXPLORER = 'https://sepolia.basescan.org/address'

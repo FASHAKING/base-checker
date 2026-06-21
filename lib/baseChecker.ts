@@ -12,6 +12,7 @@ import {
   COMMITMENT_CRITERIA_IDS,
 } from './baseCheckerCriteria'
 import { MINI_APP_REGISTRY } from './miniAppRegistry'
+import { lookupFarcaster, scoreFarcaster, FarcasterProfile } from './farcaster'
 
 const publicClient = createPublicClient({
   chain: base,
@@ -107,9 +108,17 @@ export type CheckerResult = {
     isSmartContract: boolean
     txCount: number
   }
+  farcaster: {
+    provided: boolean
+    fid: number | null
+    walletLinked: boolean
+    profile: FarcasterProfile | null
+    note: string | null
+  }
   dataSources: {
     rpc: boolean
     basescan: boolean
+    neynar: boolean
   }
   warnings: string[]
 }
@@ -135,6 +144,7 @@ function distinctMonths(timestamps: number[]): number {
 export async function checkWallet(
   addressRaw: string,
   baseAppAddressRaw?: string,
+  farcasterFidRaw?: string,
 ): Promise<CheckerResult> {
   if (!isAddress(addressRaw)) throw new Error('Invalid address')
   const address = addressRaw.toLowerCase() as `0x${string}`
@@ -356,9 +366,41 @@ export async function checkWallet(
     miniAppDisplay = 'BaseScan unavailable — cannot scan tx history'
   }
 
+  // Farcaster FID lookup (optional, via Neynar)
+  let farcasterProvided = false
+  let farcasterFid: number | null = null
+  let farcasterLinked = false
+  let farcasterProfile: FarcasterProfile | null = null
+  let farcasterValue = 0
+  let farcasterDisplay = 'Not provided'
+  let farcasterNote: string | null = null
+  let neynarOk = false
+  if (farcasterFidRaw && farcasterFidRaw.trim()) {
+    farcasterProvided = true
+    const lookup = await lookupFarcaster(farcasterFidRaw.trim(), address)
+    const scored = scoreFarcaster(lookup)
+    farcasterValue = scored.value
+    farcasterDisplay = scored.display
+    if (lookup.ok) {
+      neynarOk = true
+      farcasterFid = lookup.profile.fid
+      farcasterLinked = lookup.walletLinked
+      farcasterProfile = lookup.profile
+      if (!lookup.walletLinked) {
+        farcasterNote =
+          'FID provided but this wallet is not in its verified addresses. Ignored to prevent FID-claim abuse.'
+        warnings.push(farcasterNote)
+      }
+    } else {
+      farcasterNote = lookup.reason
+      warnings.push(`Farcaster: ${lookup.reason}`)
+    }
+  }
+
   const bonusValueByCriterion: Record<string, { value: number; display: string }> = {
     base_app_wallet: { value: baseAppValue, display: baseAppDisplay },
     mini_app_usage: { value: miniAppHits, display: miniAppDisplay },
+    farcaster: { value: farcasterValue, display: farcasterDisplay },
   }
 
   const bonusMetrics: CheckerMetric[] = BONUS_CRITERIA.map((c) => {
@@ -439,7 +481,14 @@ export async function checkWallet(
       isSmartContract: baseAppIsSmartContract,
       txCount: baseAppTxCount,
     },
-    dataSources: { rpc: rpcOk, basescan: basescanOk },
+    farcaster: {
+      provided: farcasterProvided,
+      fid: farcasterFid,
+      walletLinked: farcasterLinked,
+      profile: farcasterProfile,
+      note: farcasterNote,
+    },
+    dataSources: { rpc: rpcOk, basescan: basescanOk, neynar: neynarOk },
     warnings,
   }
 }
