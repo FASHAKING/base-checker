@@ -11,7 +11,6 @@ import {
   ACTIVITY_CRITERIA_IDS,
   COMMITMENT_CRITERIA_IDS,
 } from './baseCheckerCriteria'
-import { MINI_APP_REGISTRY } from './miniAppRegistry'
 import { lookupFarcaster, scoreFarcaster, FarcasterProfile } from './farcaster'
 import { lookupBasename, BasenameInfo } from './basename'
 
@@ -325,7 +324,7 @@ export async function checkWallet(
     // not a sybil flag per se — just no points on identity criterion
   }
 
-  // 6. Bonus: Base App / Smart Wallet detection + mini app engagement
+  // 6. Bonus: Base App / Smart Wallet detection
   let baseAppIsSmartContract = false
   let baseAppTxCount = 0
   let baseAppValue = 0
@@ -361,37 +360,6 @@ export async function checkWallet(
     }
   }
 
-  // Mini app engagement — count distinct registry contracts seen in tx history
-  // across the primary address (and optionally the Base App wallet).
-  let miniAppHits = 0
-  let miniAppDisplay = 'Registry empty (no mini apps configured)'
-  if (MINI_APP_REGISTRY.length === 0) {
-    warnings.push(
-      'Mini app registry is empty — no addresses configured. Populate lib/miniAppRegistry.ts to credit users for mini app usage.',
-    )
-  } else if (basescanOk) {
-    const registryLower = new Set(MINI_APP_REGISTRY.map((m) => m.address.toLowerCase()))
-    const touched = new Set<string>()
-    for (const tx of successfulOutgoingTxs) {
-      const to = tx.to.toLowerCase()
-      if (registryLower.has(to)) touched.add(to)
-    }
-    if (baseAppAddress) {
-      const aaList = await basescanTxList(baseAppAddress)
-      if (aaList) {
-        for (const tx of aaList) {
-          if (tx.isError !== '0') continue
-          const to = tx.to.toLowerCase()
-          if (registryLower.has(to)) touched.add(to)
-        }
-      }
-    }
-    miniAppHits = touched.size
-    miniAppDisplay = `${miniAppHits} mini app${miniAppHits === 1 ? '' : 's'}`
-  } else {
-    miniAppDisplay = 'BaseScan unavailable — cannot scan tx history'
-  }
-
   // Farcaster FID lookup (optional, via Neynar)
   let farcasterProvided = false
   let farcasterFid: number | null = null
@@ -425,7 +393,6 @@ export async function checkWallet(
 
   const bonusValueByCriterion: Record<string, { value: number; display: string }> = {
     base_app_wallet: { value: baseAppValue, display: baseAppDisplay },
-    mini_app_usage: { value: miniAppHits, display: miniAppDisplay },
     farcaster: { value: farcasterValue, display: farcasterDisplay },
   }
 
