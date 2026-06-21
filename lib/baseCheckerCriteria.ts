@@ -69,7 +69,7 @@ export const CRITERIA: Criterion[] = [
       { label: '0.01+ ETH', threshold: 0.01, points: 1 },
       { label: '0.1+ ETH', threshold: 0.1, points: 2 },
       { label: '1+ ETH', threshold: 1, points: 3 },
-      { label: '5+ ETH', threshold: 5, points: 4 },
+      { label: '2+ ETH', threshold: 2, points: 4 },
     ],
   },
   {
