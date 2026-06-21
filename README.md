@@ -316,6 +316,180 @@ For more detailed information, see the `/docs` folder:
 
 ---
 
+## Base Airdrop Checker (`/checker`)
+
+A unified eligibility checker for **Base mainnet** wallets, synthesizing patterns from the four largest L2 airdrops plus the Base Verify identity layer in this repo.
+
+### Criteria (six, 1–3 pts each, 18 pts max)
+
+| # | Criterion | Category | Inspired by |
+|---|---|---|---|
+| 1 | Transaction count (≥5 / 25 / 100) | Activity | Arbitrum (≥4 txs), Optimism, zkSync (≥10 txs) |
+| 2 | Distinct months active (≥2 / 6 / 12) | Activity | Arbitrum tiered months, Optimism repeat-user, zkSync (≥3 months) |
+| 3 | Unique contracts touched (≥4 / 10 / 25) | Breadth | Arbitrum (≥4/≥10 contracts), zkSync breadth bonus |
+| 4 | ETH held on Base (≥0.01 / 0.1 / 1) | Capital | zkSync hold ≥$50, Arbitrum bridged-volume tiers |
+| 5 | Wallet age in days (≥30 / 180 / 365) | Longevity | Arbitrum Nitro snapshot, Optimism pre-snapshot bonus |
+| 6 | Base Verify identity | Identity | **Base Verify (this repo)** + zkSync crypto-native bonus |
+
+### Sybil flags (penalties)
+
+| Flag | Severity | Inspired by |
+|---|---|---|
+| Zero txs on Base | Critical (-99) | Every L2 |
+| Wallet < 7 days old on Base | Warning (-1) | LayerZero sniper, zkSync cluster |
+| All activity within 1 calendar month despite ≥5 txs | Warning (-2) | Optimism repeat-user, zkSync pattern-similarity |
+| Identity already claimed from another wallet | Critical (-99) | Base Verify deterministic token (this repo) |
+
+### Bonus credit (optional, +9 pts max → 27 pts total)
+
+These are **opt-in** and never penalize a user for not having them.
+
+| # | Criterion | Tiers | How we detect |
+|---|---|---|---|
+| 7 | Linked Base App / Smart Wallet | detected (+1) · active 5+ txs (+2) · heavy 25+ txs (+3) | Optional second address field. Backend does `eth_getCode` — non-empty bytecode means it's a smart-contract wallet (Base App ships Coinbase Smart Wallet by default). |
+| 8 | Base mini app engagement | 1+ (+1) · 3+ (+2) · 5+ (+3) | Curated registry in `lib/miniAppRegistry.ts` — counts distinct mini app contracts the primary address (and linked Smart Wallet) has interacted with. |
+| 9 | Farcaster identity (via FID) | linked (+1) · + Power Badge or 1k+ followers (+2) · + early FID ≤200k (+3) | Optional FID field. Backend calls Neynar `/farcaster/user/bulk`, verifies the wallet is in the FID's `verified_addresses.eth_addresses` (anti-FID-claim sybil), then scores by Power Badge / follower count / FID age. |
+
+**Farcaster anti-sybil**: if the FID is provided but the queried wallet is **not** in its verified addresses, the bonus is **zero** with a warning surfaced. Prevents users from claiming any famous FID. Falls back gracefully when `NEYNAR_API_KEY` is unset.
+
+**Honest limitation on mini app tracking:** there is no public global signal for *"user X opened mini app Y."* The onchain registry approach only catches mini apps with onchain contracts the user actually transacts with. The registry ships empty so we don't fabricate addresses — populate it with the mini app contracts you want to credit users for. Future extension: accept a Farcaster FID and call Neynar API for off-chain mini app activity.
+
+### Tiers
+
+- `0 pts` → **Ineligible**
+- `1–8 pts` → **Low** (minimal activity)
+- `9–14 pts` → **Medium** (active user)
+- `15–20 pts` → **High** (power user)
+- `21–24 pts` → **Whale** (top-tier)
+
+### Architecture
+
+- **Frontend**: `pages/checker.tsx` — paste any address (or use the connected wallet) and run a check
+- **API**: `GET /api/check-wallet?address=0x…` — returns a `CheckerResult` JSON
+- **Scoring**: `lib/baseChecker.ts` + `lib/baseCheckerCriteria.ts`
+- **Data sources**:
+  - Base mainnet RPC (`viem` + `https://mainnet.base.org`) — balance, tx count fallback
+  - BaseScan API — months active, unique contracts, wallet age, first-tx timestamp
+  - Prisma DB — Base Verify identity check (re-uses existing `verified_users` table)
+
+### What's similar to other L2 airdrops, what's different
+
+**Similar**: tx-count tiers, distinct months active, contract breadth, capital commitment — these are the four near-universal pillars across ARB, OP, ZK, ZRO.
+
+**Different / unique to Base**:
+1. **Identity-as-a-pillar.** No other major L2 used a privacy-preserving social identity layer like Base Verify as a first-class eligibility input. Here a verified X Blue or Coinbase One trait scores like 0.1 ETH held.
+2. **Deterministic anti-sybil at the identity layer.** zkSync and LayerZero ran reactive sybil sweeps post-facto; Base Verify enforces "one identity → one token → one claim" at write time (see `pages/api/verify-token.ts:120-127`).
+3. **No bridge-volume requirement.** Most L2 drops weighted bridged-in capital; Base is the canonical "your money is already here" L2, so capital is measured as held balance, not bridged volume.
+4. **Lower tx-count thresholds.** Base mainnet gas is cheap enough that active users trivially clear Arbitrum-style thresholds, so the tiers are calibrated higher per point.
+
+---
+
+## $BASE Allocation Estimator (`/allocation`)
+
+Pipes the `/checker` eligibility score through a tunable airdrop economic model to estimate a wallet's $BASE allocation in tokens and USD.
+
+### Minimum eligibility (hard gate)
+
+Mirrors what every major L2 drop required. Must pass **all three**:
+
+1. **≥1 activity criterion** — tx count, months active, or unique contracts
+   (matches ARB ≥4 txs, OP repeat-user, ZK ≥10 txs)
+2. **≥1 commitment criterion** — ETH balance, Base Verify identity, or wallet age
+   (matches ARB bridged-volume, ZK held ≥$50, ZRO cross-chain message)
+3. **No critical sybil flags** — zero activity or duplicate identity
+
+Single-criterion wallets ("I hold 1 ETH but never used Base") fail. So do one-day-burst farmers ("100 txs in a day, then nothing").
+
+### Default parameters (all user-adjustable on the page)
+
+Calibrated against actual L2 launches: ARB ($1.40 launch / $14B FDV → $0.40 now), OP ($1.80 / $8B → $1.50), ZK ($0.22 / $5B → $0.06), ZRO ($4.50 / $4.5B → $2.50), STRK ($2.00 / $20B → $0.20). L2 tokens have historically lost 45–90% within months of launch.
+
+| Parameter | Default | Why |
+|---|---|---|
+| Total supply | **10,000,000,000** ($BASE) | Matches ARB, STRK, JUP. Sub-$1 token price is realistic for L2 launches |
+| Airdrop % | 10% | Mean of ARB 11.62% / OP 5% / ZK 17.5% / ZRO 8.5% |
+| FDV at launch | $3,000,000,000 | Between JUP ($6.5B) and ZK ($5B). With 10B supply → $0.30/token (matches ZK $0.22, JUP $0.65) |
+| Floor | **500 $BASE** | Hard floor in *tokens*. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300 |
+| Whale cap 🎁 | **25,000 $BASE** | Hard cap in *tokens*. Sits between ARB (10,250) and OP (27,500) — realistic and friendly, has direct precedent without feeling inflated |
+| Curve exponent | 1.5 | Mild whale skew; 50%-score user gets ~35% of whale tokens. Linear (1.0) would give 50%; ARB's actual curve was closer to 1.8 |
+| Farcaster boost | 20% | Multiplicative bonus on top of curve when FID is linked. Full 20% for early-FID + Power Badge users; 0% (no penalty) without |
+
+### Why floor + cap (not unlimited scaling)
+
+Every successful L2 drop bounded allocations on both ends:
+
+- **Hard cap** kills sybil farming incentives — you can't game your way to infinity, so the optimal strategy isn't "max one wallet's score." Also prevents whales from draining the pool and crashing the token on day-1 sell pressure.
+- **Hard floor** makes passing eligibility mean something — bottom-tier qualifying users get a real allocation, not a token of dust. Critical for distribution credibility.
+
+### Scenarios (one-click presets on the page)
+
+Caps are now **token-denominated** (the way real drops were announced). USD is derived from FDV ÷ supply × your token allocation.
+
+| Scenario | FDV | Token price | Floor ($BASE) | Cap 🎁 ($BASE) | Whale USD value |
+|---|---|---|---|---|---|
+| **Bear / sustained** | $1B | $0.10 | 250 | 10,000 (ARB modal) | ~$1,000 |
+| **Base case** (default) | $3B | $0.30 | 500 | 25,000 (OP top) | ~$7,500 |
+| **Bull / launch day** | $6B | $0.60 | 1,000 | 50,000 (STRK max) | ~$30,000 |
+
+### Formula
+
+```
+# 1. Gate: minimum eligibility (activity + commitment + no critical sybil)
+if !meetsMinimum: return 0
+
+# 2. Economics
+tokenPrice      = FDV / totalSupply
+floorTokens     = floorUsd / tokenPrice
+whaleTokens     = whaleAnchorUsd / tokenPrice         # hard cap
+
+# 3. Score-based scaling with whale-favoring curve
+scoreRatio      = userScore / maxScore
+curveMultiplier = scoreRatio ^ curveExponent          # 1.5 default
+baseCurveTokens = whaleTokens × curveMultiplier
+
+# 4. Farcaster boost (multiplicative, optional)
+# fcPts ∈ {0, 1, 2, 3}; no FID → fcPts = 0 → boost = 1.0× (no penalty)
+fcBoostMult     = 1 + farcasterBoostPct × (fcPts / 3)  # 20% default
+boostedTokens   = baseCurveTokens × fcBoostMult
+
+# 5. Clamp between floor and cap (boost can push toward cap, never past)
+userTokens      = min(whaleTokens, max(floorTokens, boostedTokens))
+userUsd         = userTokens × tokenPrice
+```
+
+The pool size and "% of pool" become **informational only** — we no longer guess how many wallets are eligible, because that would require indexing every wallet on Base.
+
+### Farcaster boost details
+
+Multiplicative bonus that activates only when the user provides an FID **and** the wallet is verified-linked to it (anti-FID-claim sybil from earlier). Scales with the Farcaster bonus criterion's earned points:
+
+| Farcaster signal | Pts | Boost @ default 20% |
+|---|---|---|
+| No FID provided | 0 | 1.00× (none) |
+| FID linked only | 1 | 1.067× (+6.7%) |
+| Linked + Power Badge or 1k+ followers | 2 | 1.133× (+13.3%) |
+| Linked + quality + early FID (≤200k) | 3 | 1.200× (+20%) |
+
+Inspired by LayerZero's quality-user multipliers and Optimism's Gitcoin Passport weighting — real drops have used identity-based multipliers as a non-compulsory bonus on top of the activity-based allocation.
+
+### Default math walk-through
+
+With **Base case** defaults: 10B supply, $3B FDV → token price = **$0.30**, floor = 500 $BASE, cap = **25,000 $BASE 🎁**, curve exponent 1.5.
+
+| Score % | Raw curve value | After floor/cap clamp | USD @ $0.30 |
+|---|---|---|---|
+| 0% (fails min eligibility) | 0 | **0 $BASE** | $0 |
+| ~6% (kink point) | ≈500 $BASE | **floored at 500 $BASE** | $150 |
+| 25% (low) | ≈3,125 $BASE | **3,125 $BASE** | $938 |
+| 50% (medium) | ≈8,839 $BASE | **8,839 $BASE** | $2,652 |
+| 75% (high) | ≈16,238 $BASE | **16,238 $BASE** | $4,871 |
+| 100% (whale, max, no FID) | 25,000 $BASE | **capped at 25,000 $BASE 🎁** | $7,500 |
+| 100% + max Farcaster boost (+20%) | 30,000 $BASE → capped | **capped at 25,000 $BASE 🎁** | $7,500 |
+
+Anyone below ~6% of max gets the floor (500 $BASE). Above that, they scale up the curve. At 100% they hit the cap (25,000 $BASE) — even Farcaster boosters get clamped here. The 25k cap sits between ARB's 10,250 and OP's 27,500 — friendly, realistic, and has direct precedent without feeling inflated.
+
+---
+
 ## Get Started
 
 **Want to integrate Base Verify?** Fill out the [interest form](https://forms.gle/6L4hWAHkojYcefz27) and we'll reach out with API access.

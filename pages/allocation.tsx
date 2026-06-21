@@ -1,0 +1,767 @@
+import Head from 'next/head'
+import { useMemo, useState } from 'react'
+import { useAccount } from 'wagmi'
+import { Layout } from '../components/Layout'
+import {
+  AllocationParams,
+  DEFAULT_PARAMS,
+  SCENARIOS,
+  estimateAllocation,
+  formatCompactNumber,
+  formatUsd,
+} from '../lib/allocationModel'
+
+type Metric = {
+  id: string
+  name: string
+  category: string
+  value: number
+  displayValue: string
+  tierLabel: string
+  pointsEarned: number
+  maxPoints: number
+  inspiredBy: string[]
+}
+
+type CheckerResult = {
+  address: string
+  totalScore: number
+  maxScore: number
+  bonusScore: number
+  bonusMaxScore: number
+  metrics: Metric[]
+  bonusMetrics: Metric[]
+  tier: 'ineligible' | 'low' | 'medium' | 'high' | 'whale'
+  minimumEligibility: {
+    meets: boolean
+    hasActivity: boolean
+    hasCommitment: boolean
+    hasCriticalSybil: boolean
+    failureReasons: string[]
+  }
+  farcaster?: {
+    provided: boolean
+    fid: number | null
+    walletLinked: boolean
+    profile: { username: string | null; powerBadge: boolean; followerCount: number; fidAgeBucket: string } | null
+    note: string | null
+  }
+  warnings: string[]
+}
+
+const TIER_COLORS: Record<CheckerResult['tier'], string> = {
+  ineligible: '#991b1b',
+  low: '#92400e',
+  medium: '#1e40af',
+  high: '#065f46',
+  whale: '#5b21b6',
+}
+
+export default function AllocationPage() {
+  const { address: connected } = useAccount()
+  const [input, setInput] = useState('')
+  const [baseAppInput, setBaseAppInput] = useState('')
+  const [fidInput, setFidInput] = useState('')
+  const [params, setParams] = useState<AllocationParams>(DEFAULT_PARAMS)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [result, setResult] = useState<CheckerResult | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const targetAddress = input.trim() || connected || ''
+
+  const runCheck = async () => {
+    setError('')
+    setResult(null)
+    setIsLoading(true)
+    try {
+      const qs = new URLSearchParams({ address: targetAddress })
+      if (baseAppInput.trim()) qs.set('baseApp', baseAppInput.trim())
+      if (fidInput.trim()) qs.set('fid', fidInput.trim())
+      const res = await fetch(`/api/check-wallet?${qs.toString()}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Check failed')
+      setResult(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Check failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const estimate = useMemo(() => {
+    if (!result) return null
+    return estimateAllocation(result, params)
+  }, [result, params])
+
+  const updateParam = <K extends keyof AllocationParams>(key: K, value: AllocationParams[K]) => {
+    setParams((p) => ({ ...p, [key]: value }))
+  }
+
+
+  return (
+    <Layout title="$BASE Airdrop Allocation Simulator">
+      <Head>
+        <title>$BASE Allocation Estimator</title>
+        <meta
+          name="description"
+          content="Estimate how many $BASE tokens a wallet would receive across tunable supply, airdrop %, and FDV scenarios."
+        />
+      </Head>
+
+      <div style={{ maxWidth: 820, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.75rem, 6vw, 2.5rem)', fontWeight: 700, margin: '0 0 0.5rem', color: '#1a1a1a' }}>
+            $BASE Allocation Estimator
+          </h2>
+          <p style={{ fontSize: '0.95rem', color: '#666', margin: 0, lineHeight: 1.4 }}>
+            Pipes the /checker eligibility score through a tunable airdrop economic model.
+            Adjust supply, airdrop %, FDV, and tier curve to see what allocation a wallet would get.
+          </p>
+        </div>
+
+        {/* Address inputs */}
+        <Card>
+          <Label>Wallet address (required)</Label>
+          <Input
+            value={input}
+            onChange={setInput}
+            placeholder={connected ? `Default: ${connected.slice(0, 8)}…${connected.slice(-6)}` : '0x…'}
+          />
+          <div style={{ height: 8 }} />
+          <Label>Base App / Smart Wallet (optional)</Label>
+          <Input value={baseAppInput} onChange={setBaseAppInput} placeholder="0x…" />
+          <div style={{ height: 8 }} />
+          <Label>Farcaster FID (optional)</Label>
+          <Input value={fidInput} onChange={setFidInput} placeholder="e.g. 3621" />
+
+          <button
+            onClick={runCheck}
+            disabled={isLoading || !targetAddress}
+            style={{
+              marginTop: 12,
+              padding: '0.75rem 1.25rem',
+              background: isLoading || !targetAddress ? '#f3f4f6' : '#0052FF',
+              color: isLoading || !targetAddress ? '#9ca3af' : 'white',
+              border: 'none',
+              borderRadius: 10,
+              fontWeight: 600,
+              cursor: isLoading || !targetAddress ? 'not-allowed' : 'pointer',
+              fontSize: '0.95rem',
+              width: '100%',
+            }}
+          >
+            {isLoading ? 'Checking eligibility…' : 'Estimate my $BASE allocation'}
+          </button>
+        </Card>
+
+        {error && (
+          <div style={errorBox}>{error}</div>
+        )}
+
+        {/* Live token economics summary — always visible */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #eff6ff 0%, #f3e8ff 100%)',
+            border: '1px solid #c7d2fe',
+            borderRadius: 16,
+            padding: '1rem 1.25rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            justifyContent: 'space-around',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <PriceStat label="FDV" value={formatUsd(params.fdvUsd)} />
+          <PriceStat label="Supply" value={`${formatCompactNumber(params.totalSupply)} $BASE`} />
+          <PriceStat
+            label="Projected $BASE price"
+            value={formatUsd(params.fdvUsd / params.totalSupply)}
+            highlight
+          />
+          <PriceStat
+            label="Airdrop pool"
+            value={`${formatCompactNumber(params.totalSupply * params.airdropPct)} $BASE`}
+          />
+        </div>
+
+        {/* Economic parameters */}
+        <Card>
+          <SectionTitle>Airdrop economics</SectionTitle>
+
+          {/* Scenario picker */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+            {Object.entries(SCENARIOS).map(([key, scenario]) => (
+              <button
+                key={key}
+                onClick={() => setParams((p) => ({ ...p, ...scenario }))}
+                style={{
+                  flex: 1,
+                  minWidth: 100,
+                  padding: '0.5rem 0.75rem',
+                  background: 'white',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 8,
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: '#374151',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+                title={scenario.note}
+              >
+                {scenario.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: '0.7rem', color: '#6b7280', marginBottom: 12, padding: 8, background: '#f9fafb', borderRadius: 6, lineHeight: 1.4 }}>
+            Real launches for context: <strong>ARB</strong> $1.40 launch ($14B FDV) → $0.40 now ·{' '}
+            <strong>OP</strong> $1.80 ($8B) → $1.50 · <strong>ZK</strong> $0.22 ($5B) → $0.06 ·{' '}
+            <strong>ZRO</strong> $4.50 ($4.5B) → $2.50 · <strong>STRK</strong> $2.00 ($20B) → $0.20.
+            L2 tokens typically lose 45-90% within months of launch.
+          </div>
+
+          <div
+            style={{
+              fontSize: '0.7rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: '#0052FF',
+              fontWeight: 700,
+              marginBottom: 8,
+              paddingBottom: 6,
+              borderBottom: '2px solid #dbeafe',
+            }}
+          >
+            🎛️ Main tokenomics knobs
+          </div>
+
+          <NumberRow
+            label="Total $BASE supply"
+            value={params.totalSupply}
+            onChange={(v) => updateParam('totalSupply', v)}
+            suffix="tokens"
+            hint="ARB 10B · STRK 10B · JUP 10B · OP 4.3B · ZK 21B · ZRO 1B. Default 10B."
+          />
+          <NumberRow
+            label="Airdrop allocation (% of supply)"
+            value={params.airdropPct * 100}
+            onChange={(v) => updateParam('airdropPct', v / 100)}
+            suffix="%"
+            hint="Mean of ARB 11.6% / OP 5% / ZK 17.5% / ZRO 8.5% ≈ 10%"
+          />
+          <NumberRow
+            label="FDV at launch"
+            value={params.fdvUsd}
+            onChange={(v) => updateParam('fdvUsd', v)}
+            suffix="USD"
+            hint="Default $3B (between JUP $6.5B and ZK $5B). Bull case $6B. Sustained 6-mo: $1B."
+          />
+
+          <div
+            style={{
+              fontSize: '0.7rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: '#6b7280',
+              fontWeight: 700,
+              marginTop: 16,
+              marginBottom: 8,
+              paddingBottom: 6,
+              borderBottom: '1px solid #e5e7eb',
+            }}
+          >
+            Distribution shape
+          </div>
+          <NumberRow
+            label="Floor ($BASE min-eligible user gets)"
+            value={params.floorTokens}
+            onChange={(v) => updateParam('floorTokens', v)}
+            suffix="$BASE"
+            hint={`Hard FLOOR. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300. Default 500 = ${formatUsd(params.floorTokens * (params.fdvUsd / params.totalSupply))} at current FDV.`}
+          />
+          <NumberRow
+            label="Whale cap ($BASE max-score user gets) 🎁"
+            value={params.whaleAnchorTokens}
+            onChange={(v) => updateParam('whaleAnchorTokens', v)}
+            suffix="$BASE"
+            hint={`Hard CAP. Real caps: ARB 10,250 · OP 27,500 · ZK 100,000 · ZRO 10,000 · STRK 50,000. Default 25,000 sits between ARB and OP = ${formatUsd(params.whaleAnchorTokens * (params.fdvUsd / params.totalSupply))} at current FDV.`}
+          />
+          <NumberRow
+            label="Farcaster boost (max)"
+            value={params.farcasterBoostPct * 100}
+            onChange={(v) => updateParam('farcasterBoostPct', v / 100)}
+            suffix="%"
+            hint="Multiplicative bonus on top of curve when FID is linked. Scales with FC tier (0/⅓/⅔/full). Default +20% for full-tier Farcaster users. No FID → no boost, no penalty."
+          />
+
+          <button
+            onClick={() => setShowAdvanced((s) => !s)}
+            style={{
+              marginTop: 12,
+              background: 'none',
+              border: 'none',
+              color: '#0052FF',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            {showAdvanced ? '▼' : '▶'} Advanced: distribution curve
+          </button>
+
+          {showAdvanced && (
+            <div style={{ marginTop: 12, padding: 12, background: '#fafafa', borderRadius: 8 }}>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 8, lineHeight: 1.4 }}>
+                Shapes how allocation scales with score. 1.0 = linear · 1.5 = mild whale skew (default, matches ARB) · 2.0 = strong whale skew.
+              </div>
+              <NumberRow
+                label="Curve exponent"
+                value={params.curveExponent}
+                onChange={(v) => updateParam('curveExponent', v)}
+                suffix="×"
+                hint={`At ${params.curveExponent}, a 50%-score user gets ${(Math.pow(0.5, params.curveExponent) * 100).toFixed(0)}% of whale tokens.`}
+                small
+              />
+            </div>
+          )}
+
+          <button
+            onClick={() => setParams(DEFAULT_PARAMS)}
+            style={{
+              marginTop: 8,
+              background: 'none',
+              border: '1px solid #e5e7eb',
+              color: '#6b7280',
+              fontSize: '0.8rem',
+              padding: '0.4rem 0.75rem',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            Reset to defaults
+          </button>
+        </Card>
+
+        {/* Result */}
+        {result && estimate && (
+          <>
+            {/* Minimum eligibility gate */}
+            <Card
+              style={{
+                borderColor: result.minimumEligibility.meets ? '#bbf7d0' : '#fecaca',
+                background: result.minimumEligibility.meets ? '#f0fdf4' : '#fef2f2',
+              }}
+            >
+              <SectionTitle
+                style={{
+                  color: result.minimumEligibility.meets ? '#065f46' : '#991b1b',
+                  margin: 0,
+                }}
+              >
+                {result.minimumEligibility.meets ? '✓ Meets minimum eligibility' : '✗ Does not meet minimum eligibility'}
+              </SectionTitle>
+              <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+                <EligibilityBadge
+                  label="Activity"
+                  passed={result.minimumEligibility.hasActivity}
+                  hint="tx count, months active, or unique contracts"
+                />
+                <EligibilityBadge
+                  label="Commitment"
+                  passed={result.minimumEligibility.hasCommitment}
+                  hint="ETH balance, Base Verify, or wallet age"
+                />
+                <EligibilityBadge
+                  label="No critical sybil"
+                  passed={!result.minimumEligibility.hasCriticalSybil}
+                  hint="zero txs, duplicate identity"
+                />
+              </div>
+              {!result.minimumEligibility.meets && (
+                <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#991b1b' }}>
+                  {result.minimumEligibility.failureReasons.map((r, i) => (
+                    <div key={i}>• {r}</div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card style={{ borderColor: TIER_COLORS[result.tier] + '40', background: TIER_COLORS[result.tier] + '08' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: TIER_COLORS[result.tier], letterSpacing: '0.05em', fontWeight: 700 }}>
+                  Tier: {result.tier} ({result.totalScore} / {result.maxScore} pts)
+                </div>
+                <div style={{ fontSize: '3rem', fontWeight: 800, color: TIER_COLORS[result.tier], lineHeight: 1.1, marginTop: 8 }}>
+                  {formatCompactNumber(estimate.userTokens)}
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: TIER_COLORS[result.tier], opacity: 0.7 }}>
+                  $BASE
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TIER_COLORS[result.tier], marginTop: 12 }}>
+                  ≈ {formatUsd(estimate.userUsd)}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4 }}>
+                  at {formatUsd(estimate.tokenPriceUsd)} per $BASE
+                </div>
+                {estimate.eligible && (
+                  <>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 6 }}>
+                      = {estimate.poolSharePct.toFixed(5)}% of the total airdrop pool
+                    </div>
+                    {estimate.farcasterBoostMultiplier > 1 && (
+                      <div
+                        style={{
+                          marginTop: 10,
+                          padding: '0.4rem 0.65rem',
+                          background: '#f3e8ff',
+                          border: '1px solid #d8b4fe',
+                          borderRadius: 8,
+                          fontSize: '0.75rem',
+                          color: '#6b21a8',
+                          fontWeight: 600,
+                          display: 'inline-block',
+                        }}
+                      >
+                        🟣 Farcaster boost active: +{((estimate.farcasterBoostMultiplier - 1) * 100).toFixed(1)}%
+                      </div>
+                    )}
+                    {estimate.hitFloor && (
+                      <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#1e40af', fontWeight: 600 }}>
+                        ⬆️ Floored at {formatCompactNumber(params.floorTokens)} $BASE — you cleared the bar
+                      </div>
+                    )}
+                    {estimate.hitCap && (
+                      <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#5b21b6', fontWeight: 600 }}>
+                        ⬇️ Capped at {formatCompactNumber(params.whaleAnchorTokens)} $BASE 🎁 — max tier reached
+                      </div>
+                    )}
+                    <div style={{ marginTop: 8, fontSize: '0.65rem', color: '#9ca3af' }}>
+                      Range: {formatCompactNumber(params.floorTokens)} – {formatCompactNumber(params.whaleAnchorTokens)} $BASE
+                    </div>
+                  </>
+                )}
+              </div>
+            </Card>
+
+            <Card>
+              <SectionTitle>How this was calculated</SectionTitle>
+              <BreakdownRow label="Total supply" value={`${formatCompactNumber(params.totalSupply)} $BASE`} />
+              <BreakdownRow label="Airdrop pool" value={`${formatCompactNumber(estimate.poolTokens)} $BASE (${(params.airdropPct * 100).toFixed(1)}%)`} />
+              <BreakdownRow label="Pool USD value @ FDV" value={formatUsd(estimate.poolUsd)} />
+              <BreakdownRow label="Token price (FDV ÷ supply)" value={formatUsd(estimate.tokenPriceUsd)} />
+              <BreakdownRow label="Floor (min eligible)" value={`${formatCompactNumber(estimate.floorTokens)} $BASE (${formatUsd(estimate.floorTokens * estimate.tokenPriceUsd)})`} />
+              <BreakdownRow label="Cap (max eligible) 🎁" value={`${formatCompactNumber(estimate.whaleAnchorTokens)} $BASE (${formatUsd(estimate.whaleAnchorTokens * estimate.tokenPriceUsd)})`} />
+              <BreakdownRow label="Your score" value={`${result.totalScore} / ${result.maxScore} (${(estimate.scoreRatio * 100).toFixed(1)}%)`} />
+              <BreakdownRow label={`Base curve value (^${params.curveExponent})`} value={`${formatCompactNumber(estimate.baseCurveTokens)} $BASE`} />
+              <BreakdownRow
+                label={`Farcaster boost (×${estimate.farcasterBoostMultiplier.toFixed(3)})`}
+                value={
+                  estimate.farcasterBoostMultiplier > 1
+                    ? `+${formatCompactNumber(estimate.boostedTokens - estimate.baseCurveTokens)} $BASE`
+                    : 'no FID linked → 1.0×'
+                }
+              />
+              <BreakdownRow label="After boost (pre-clamp)" value={`${formatCompactNumber(estimate.boostedTokens)} $BASE`} />
+              <BreakdownRow
+                label="After floor & cap clamp"
+                value={estimate.eligible ? `${formatCompactNumber(estimate.userTokens)} $BASE` : '0 $BASE (below minimum)'}
+                bold
+              />
+            </Card>
+
+            {/* Achievements — what the wallet actually checked */}
+            <Card>
+              <SectionTitle>
+                What you checked
+                <span style={{ marginLeft: 8, fontSize: '0.75rem', padding: '2px 8px', borderRadius: 6, background: '#dbeafe', color: '#1e40af', fontWeight: 600 }}>
+                  {result.totalScore} / {result.maxScore} pts earned
+                </span>
+              </SectionTitle>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0 0 10px' }}>
+                ✓ green = max tier · ✓ blue = partial credit · – grey = not met
+              </p>
+              <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                Base criteria
+              </div>
+              {result.metrics.map((m) => (
+                <AchievementRow key={m.id} metric={m} />
+              ))}
+              <div style={{ fontSize: '0.7rem', color: '#9ca3af', margin: '12px 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                Bonus criteria (opt-in)
+              </div>
+              {result.bonusMetrics.map((m) => (
+                <AchievementRow key={m.id} metric={m} />
+              ))}
+            </Card>
+
+            {result.warnings.length > 0 && (
+              <Card style={{ background: '#fffbeb', borderColor: '#fcd34d' }}>
+                <SectionTitle>Notes from the eligibility check</SectionTitle>
+                {result.warnings.map((w, i) => (
+                  <div key={i} style={{ fontSize: '0.8rem', color: '#92400e', marginBottom: 4 }}>• {w}</div>
+                ))}
+              </Card>
+            )}
+          </>
+        )}
+
+        {!result && !isLoading && (
+          <Card>
+            <SectionTitle>What this does</SectionTitle>
+            <p style={{ fontSize: '0.85rem', color: '#4b5563', lineHeight: 1.5, margin: 0 }}>
+              Runs <code>/api/check-wallet</code> for your address, checks if you meet the minimum
+              eligibility bar (activity + commitment + no critical sybil), then scales your
+              allocation off a whale anchor by your score ratio raised to the curve exponent.
+            </p>
+            <SectionTitle style={{ marginTop: 16 }}>Minimum eligibility (recommended)</SectionTitle>
+            <p style={{ fontSize: '0.8rem', color: '#4b5563', lineHeight: 1.5, margin: '0 0 8px' }}>
+              Mirrors what every major L2 drop required. You must pass <strong>all three</strong>:
+            </p>
+            <ul style={{ fontSize: '0.8rem', color: '#4b5563', lineHeight: 1.6, margin: 0, paddingLeft: 18 }}>
+              <li><strong>≥1 activity criterion</strong> — tx count, months active, or unique contracts (matches ARB ≥4 txs, OP repeat-user, ZK ≥10 txs)</li>
+              <li><strong>≥1 commitment criterion</strong> — ETH balance, Base Verify identity, or wallet age (matches ARB bridged-volume, ZK held ≥$50, ZRO cross-chain message)</li>
+              <li><strong>No critical sybil flags</strong> — zero activity or duplicate identity</li>
+            </ul>
+            <SectionTitle style={{ marginTop: 16 }}>Defaults sourced from real L2 launches</SectionTitle>
+            <ul style={{ fontSize: '0.8rem', color: '#4b5563', lineHeight: 1.6, margin: 0, paddingLeft: 18 }}>
+              <li><strong>Supply 10B</strong> — matches ARB, STRK, JUP. Gives a sub-$1 token price (more realistic for L2 launches than 1B which would imply $0.30+)</li>
+              <li><strong>Airdrop 10%</strong> — mean of ARB 11.6% / OP 5% / ZK 17.5% / ZRO 8.5%</li>
+              <li><strong>FDV $3B</strong> — between JUP ($6.5B) and ZK ($5B). With 10B supply → $0.30/token, matches ZK $0.22 / JUP $0.65</li>
+              <li><strong>Floor 500 $BASE</strong> — min-eligible user gets at least this many tokens. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300</li>
+              <li><strong>Whale cap 25,000 $BASE 🎁</strong> — max-score user gets at most this. Sits between ARB (10,250) and OP (27,500) — friendly and realistic, has direct precedent</li>
+              <li><strong>Curve exponent 1.5</strong> — mild whale skew; a 50%-score user gets ~35% of whale tokens (linear would give 50%, ARB's actual curve was steeper)</li>
+              <li><strong>Farcaster boost 20%</strong> — multiplicative bonus on top of curve when FID is linked. Full +20% for early-FID + Power Badge users; smaller boost for casual Farcaster users; 0% (no penalty) for non-Farcaster users. Inspired by LayerZero's quality-user multipliers and Optimism's Gitcoin Passport weighting</li>
+            </ul>
+            <div style={{ marginTop: 12, padding: 10, background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: 8, fontSize: '0.75rem', color: '#1e40af', lineHeight: 1.4 }}>
+              <strong>Why floor + cap?</strong> Every major L2 drop (ARB, OP, ZK, ZRO, STRK) used both.
+              The cap kills sybil farming incentives (can't game your way to infinity) and prevents
+              whales from draining the pool. The floor makes &quot;passing eligibility&quot; mean something
+              real — bottom-tier qualifying users get a meaningful allocation, not 1 token.
+            </div>
+            <div style={{ marginTop: 8, padding: 10, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, fontSize: '0.75rem', color: '#92400e', lineHeight: 1.4 }}>
+              <strong>Honest note:</strong> every major L2 token lost 45-90% within months of launch
+              (ARB -70%, ZK -70%+, STRK -90%). Use the &quot;Bear / sustained&quot; scenario to model what you'd actually be holding 6 months in.
+            </div>
+          </Card>
+        )}
+      </div>
+    </Layout>
+  )
+}
+
+const cardBase = {
+  background: 'white',
+  border: '1px solid #e5e7eb',
+  borderRadius: 16,
+  padding: '1rem',
+  marginBottom: '1rem',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+}
+
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return <div style={{ ...cardBase, ...style }}>{children}</div>
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>
+      {children}
+    </label>
+  )
+}
+
+function Input({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{
+        width: '100%',
+        padding: '0.65rem 0.75rem',
+        border: '1px solid #d1d5db',
+        borderRadius: 10,
+        fontSize: '0.9rem',
+        fontFamily: 'monospace',
+        outline: 'none',
+        boxSizing: 'border-box',
+      }}
+    />
+  )
+}
+
+function SectionTitle({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 700, color: '#1a1a1a', ...style }}>
+      {children}
+    </h3>
+  )
+}
+
+function NumberRow({
+  label,
+  value,
+  onChange,
+  suffix,
+  hint,
+  small,
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  suffix?: string
+  hint?: string
+  small?: boolean
+}) {
+  return (
+    <div style={{ marginBottom: small ? 6 : 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <label style={{ fontSize: small ? '0.75rem' : '0.8rem', fontWeight: 600, color: '#374151' }}>
+          {label}
+        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+            style={{
+              width: 140,
+              padding: '0.35rem 0.5rem',
+              border: '1px solid #d1d5db',
+              borderRadius: 6,
+              fontSize: '0.85rem',
+              fontFamily: 'monospace',
+              textAlign: 'right',
+              outline: 'none',
+            }}
+          />
+          {suffix && (
+            <span style={{ fontSize: '0.75rem', color: '#6b7280', minWidth: 40 }}>{suffix}</span>
+          )}
+        </div>
+      </div>
+      {hint && (
+        <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 2 }}>{hint}</div>
+      )}
+    </div>
+  )
+}
+
+function PriceStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div style={{ textAlign: 'center', minWidth: 100 }}>
+      <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: highlight ? '1.4rem' : '1.05rem',
+          fontWeight: highlight ? 800 : 700,
+          color: highlight ? '#0052FF' : '#1a1a1a',
+          fontFamily: 'monospace',
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function AchievementRow({ metric }: { metric: Metric }) {
+  const passed = metric.pointsEarned > 0
+  const isMax = metric.pointsEarned === metric.maxPoints
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '0.5rem 0.75rem',
+        background: passed ? (isMax ? '#dcfce7' : '#eff6ff') : '#f9fafb',
+        border: `1px solid ${passed ? (isMax ? '#86efac' : '#bfdbfe') : '#e5e7eb'}`,
+        borderRadius: 8,
+        marginBottom: 6,
+      }}
+    >
+      <div
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: '50%',
+          background: passed ? (isMax ? '#16a34a' : '#3b82f6') : '#d1d5db',
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '0.7rem',
+          fontWeight: 700,
+          flexShrink: 0,
+        }}
+      >
+        {passed ? '✓' : '–'}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1a1a1a' }}>
+          {metric.name}
+        </div>
+        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+          {passed ? metric.tierLabel : 'Not met'} · <span style={{ fontFamily: 'monospace' }}>{metric.displayValue}</span>
+        </div>
+      </div>
+      <div
+        style={{
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          color: passed ? (isMax ? '#15803d' : '#1e40af') : '#9ca3af',
+          fontFamily: 'monospace',
+        }}
+      >
+        {metric.pointsEarned}/{metric.maxPoints}
+      </div>
+    </div>
+  )
+}
+
+function EligibilityBadge({ label, passed, hint }: { label: string; passed: boolean; hint: string }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 140,
+        padding: '0.5rem 0.75rem',
+        background: passed ? '#dcfce7' : '#fee2e2',
+        border: `1px solid ${passed ? '#86efac' : '#fca5a5'}`,
+        borderRadius: 8,
+      }}
+    >
+      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: passed ? '#065f46' : '#991b1b' }}>
+        {passed ? '✓' : '✗'} {label}
+      </div>
+      <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: 2 }}>{hint}</div>
+    </div>
+  )
+}
+
+function BreakdownRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #f3f4f6', fontSize: '0.85rem' }}>
+      <span style={{ color: '#4b5563', fontWeight: bold ? 700 : 400 }}>{label}</span>
+      <span style={{ fontFamily: 'monospace', color: bold ? '#0052FF' : '#1a1a1a', fontWeight: bold ? 700 : 500 }}>{value}</span>
+    </div>
+  )
+}
+
+const errorBox: React.CSSProperties = {
+  background: '#fef2f2',
+  border: '1px solid #fecaca',
+  color: '#991b1b',
+  padding: '0.75rem 1rem',
+  borderRadius: 12,
+  fontSize: '0.9rem',
+  marginBottom: '1rem',
+}

@@ -20,6 +20,16 @@ export const config = {
   claimChainId: parseInt(process.env.NEXT_PUBLIC_CLAIM_CHAIN_ID || '84532', 10),
   registryContractAddress:
     process.env.NEXT_PUBLIC_REGISTRY_CONTRACT_ADDRESS || '0x422cF0f188F8Bf9d93E2810CA429d1bB5cdd620d',
+
+  // Base mainnet — used by /checker for L2-style eligibility scoring
+  baseMainnetRpcUrl: process.env.BASE_MAINNET_RPC_URL || 'https://mainnet.base.org',
+  basescanApiUrl: process.env.BASESCAN_API_URL || 'https://api.etherscan.io/v2/api',
+  basescanApiKey: process.env.BASESCAN_API_KEY || '',
+  basescanChainId: parseInt(process.env.BASESCAN_CHAIN_ID || '8453', 10),
+
+  // Farcaster — used by /checker for FID-based bonus credit (via Neynar)
+  neynarApiUrl: process.env.NEYNAR_API_URL || 'https://api.neynar.com/v2',
+  neynarApiKey: process.env.NEYNAR_API_KEY || '',
 }
 
 const SEPOLIA_EXPLORER = 'https://sepolia.basescan.org/address'
