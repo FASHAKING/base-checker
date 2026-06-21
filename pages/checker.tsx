@@ -208,6 +208,50 @@ export default function CheckerPage() {
 
         {result && (
           <>
+            {/* Minimum eligibility gate */}
+            <div
+              style={{
+                background: result.minimumEligibility.meets ? '#f0fdf4' : '#fef2f2',
+                border: `1px solid ${result.minimumEligibility.meets ? '#bbf7d0' : '#fecaca'}`,
+                borderRadius: 16,
+                padding: '1rem 1.25rem',
+                marginBottom: '1rem',
+              }}
+            >
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: result.minimumEligibility.meets ? '#065f46' : '#991b1b', marginBottom: 8 }}>
+                {result.minimumEligibility.meets
+                  ? '✓ Meets minimum airdrop eligibility'
+                  : '✗ Does not meet minimum airdrop eligibility'}
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                <MinBadge
+                  label="Activity"
+                  passed={result.minimumEligibility.hasActivity}
+                  hint="tx count, months active, or contracts"
+                />
+                <MinBadge
+                  label="Commitment"
+                  passed={result.minimumEligibility.hasCommitment}
+                  hint="ETH, Base Verify, or wallet age"
+                />
+                <MinBadge
+                  label="No critical sybil"
+                  passed={!result.minimumEligibility.hasCriticalSybil}
+                  hint="not zero-tx; identity not reused"
+                />
+              </div>
+              {!result.minimumEligibility.meets && (
+                <div style={{ marginTop: 8, fontSize: '0.8rem', color: '#991b1b' }}>
+                  {result.minimumEligibility.failureReasons.map((r, i) => (
+                    <div key={i}>• {r}</div>
+                  ))}
+                </div>
+              )}
+              <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#6b7280', lineHeight: 1.4 }}>
+                Mirrors the universal pattern across ARB, OP, ZK, ZRO — every major L2 drop required activity AND commitment, not just one.
+              </div>
+            </div>
+
             {/* Score banner */}
             <div
               style={{
@@ -424,5 +468,25 @@ export default function CheckerPage() {
         )}
       </div>
     </Layout>
+  )
+}
+
+function MinBadge({ label, passed, hint }: { label: string; passed: boolean; hint: string }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 130,
+        padding: '0.4rem 0.6rem',
+        background: passed ? '#dcfce7' : '#fee2e2',
+        border: `1px solid ${passed ? '#86efac' : '#fca5a5'}`,
+        borderRadius: 8,
+      }}
+    >
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: passed ? '#065f46' : '#991b1b' }}>
+        {passed ? '✓' : '✗'} {label}
+      </div>
+      <div style={{ fontSize: '0.6rem', color: '#6b7280', marginTop: 1 }}>{hint}</div>
+    </div>
   )
 }
