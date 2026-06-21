@@ -92,13 +92,19 @@ export default function CheckerPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Tunable economics
-  const [supplyMb, setSupplyMb] = useState<{ value: number; unit: 'M' | 'B' }>({ value: 10, unit: 'B' })
-  const [fdvMb, setFdvMb] = useState<{ value: number; unit: 'M' | 'B' }>({ value: 3, unit: 'B' })
+  // Tunable economics — sliders in billions
+  const [supplyB, setSupplyB] = useState(10)
+  const [fdvB, setFdvB] = useState(3)
   const [airdropPct, setAirdropPct] = useState(25)
 
-  const totalSupply = supplyMb.value * (supplyMb.unit === 'B' ? 1_000_000_000 : 1_000_000)
-  const fdvUsd = fdvMb.value * (fdvMb.unit === 'B' ? 1_000_000_000 : 1_000_000)
+  const totalSupply = supplyB * 1_000_000_000
+  const fdvUsd = fdvB * 1_000_000_000
+
+  const applyPreset = (preset: { fdv: number; supply: number; pct: number }) => {
+    setFdvB(preset.fdv)
+    setSupplyB(preset.supply)
+    setAirdropPct(preset.pct)
+  }
   const allocParams = {
     ...DEFAULT_PARAMS,
     totalSupply,
@@ -313,84 +319,108 @@ export default function CheckerPage() {
               <IntroPanel />
             )}
 
-            {/* Economics card */}
+            {/* Tokenomics — visually distinct from page (lighter card, prominent stats top) */}
             <div
               style={{
-                background: C.panel,
-                border: `1px solid ${C.border}`,
-                borderRadius: 16,
-                padding: '1.25rem',
-                marginTop: '2rem',
+                marginTop: '2.25rem',
+                background: 'linear-gradient(180deg, rgba(0,82,255,0.05) 0%, rgba(0,0,0,0) 100%)',
+                border: `1px solid ${C.borderSoft}`,
+                borderRadius: 14,
+                padding: '1.1rem 1.1rem 1.25rem',
               }}
             >
-              <EconRow
-                label="FULLY-DILUTED VALUATION"
-                value={fdvMb.value}
-                onChange={(v) => setFdvMb({ ...fdvMb, value: v })}
-                unit={fdvMb.unit}
-                onUnitChange={(u) => setFdvMb({ ...fdvMb, unit: u })}
-                prefix="$"
-              />
-              <EconRow
-                label="TOTAL TOKEN SUPPLY"
-                value={supplyMb.value}
-                onChange={(v) => setSupplyMb({ ...supplyMb, value: v })}
-                unit={supplyMb.unit}
-                onUnitChange={(u) => setSupplyMb({ ...supplyMb, unit: u })}
-              />
-              <div style={{ marginTop: 14 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'baseline',
-                    fontSize: '0.65rem',
-                    color: C.textMute,
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    marginBottom: 8,
-                  }}
-                >
-                  <span>% OF SUPPLY ALLOCATED TO AIRDROP</span>
-                  <span style={{ color: C.text, fontSize: '0.9rem', fontWeight: 700 }}>
-                    {airdropPct.toFixed(2)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={0.5}
-                  value={airdropPct}
-                  onChange={(e) => setAirdropPct(parseFloat(e.target.value))}
-                  style={{ width: '100%', accentColor: C.accent }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: C.textDim }}>
-                  <span>0%</span>
-                  <span>100%</span>
-                </div>
-              </div>
               <div
                 style={{
-                  marginTop: 14,
-                  paddingTop: 12,
-                  borderTop: `1px solid ${C.borderSoft}`,
+                  fontSize: '0.65rem',
+                  letterSpacing: '0.12em',
+                  color: C.textMute,
+                  fontWeight: 700,
+                  marginBottom: 10,
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: '0.75rem',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                <span style={{ color: C.textMute }}>Projected $BASE price</span>
-                <span style={{ color: C.gold, fontWeight: 700, fontFamily: 'monospace' }}>
-                  {formatUsd(projectedPrice)}
-                </span>
+                🧮 TOKENOMICS
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginTop: 4 }}>
-                <span style={{ color: C.textDim }}>Pool size</span>
-                <span style={{ color: C.textMute, fontFamily: 'monospace' }}>
-                  {formatCompactNumber(poolTokens)} $BASE
-                </span>
+
+              {/* Big projected price + pool — prominent */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 12,
+                  marginBottom: 14,
+                  padding: '0.85rem',
+                  background: C.bg,
+                  borderRadius: 10,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: C.textDim, letterSpacing: '0.08em', fontWeight: 700, marginBottom: 4 }}>
+                    $BASE PRICE
+                  </div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, color: C.gold, fontFamily: 'monospace' }}>
+                    ${projectedPrice < 0.01 ? projectedPrice.toFixed(4) : projectedPrice.toFixed(2)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: C.textDim, letterSpacing: '0.08em', fontWeight: 700, marginBottom: 4 }}>
+                    AIRDROP POOL
+                  </div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, color: C.text, fontFamily: 'monospace' }}>
+                    {formatCompactNumber(poolTokens)}
+                  </div>
+                </div>
               </div>
+
+              {/* Preset chips */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+                <PresetChip
+                  label="Conservative"
+                  active={fdvB === 1 && supplyB === 10 && airdropPct === 10}
+                  onClick={() => applyPreset({ fdv: 1, supply: 10, pct: 10 })}
+                />
+                <PresetChip
+                  label="Base case"
+                  active={fdvB === 3 && supplyB === 10 && airdropPct === 25}
+                  onClick={() => applyPreset({ fdv: 3, supply: 10, pct: 25 })}
+                />
+                <PresetChip
+                  label="Bullish"
+                  active={fdvB === 8 && supplyB === 10 && airdropPct === 30}
+                  onClick={() => applyPreset({ fdv: 8, supply: 10, pct: 30 })}
+                />
+              </div>
+
+              {/* Sliders */}
+              <SliderRow
+                label="FDV"
+                value={fdvB}
+                onChange={setFdvB}
+                min={0.5}
+                max={20}
+                step={0.5}
+                formatValue={(v) => `$${v}B`}
+              />
+              <SliderRow
+                label="Supply"
+                value={supplyB}
+                onChange={setSupplyB}
+                min={1}
+                max={21}
+                step={1}
+                formatValue={(v) => `${v}B $BASE`}
+              />
+              <SliderRow
+                label="Airdrop %"
+                value={airdropPct}
+                onChange={setAirdropPct}
+                min={0}
+                max={100}
+                step={0.5}
+                formatValue={(v) => `${v.toFixed(1)}%`}
+              />
             </div>
           </div>
 
@@ -979,93 +1009,71 @@ function CompactInput({
   )
 }
 
-function EconRow({
+function SliderRow({
   label,
   value,
   onChange,
-  unit,
-  onUnitChange,
-  prefix,
+  min,
+  max,
+  step,
+  formatValue,
 }: {
   label: string
   value: number
   onChange: (v: number) => void
-  unit: 'M' | 'B'
-  onUnitChange: (u: 'M' | 'B') => void
-  prefix?: string
+  min: number
+  max: number
+  step: number
+  formatValue: (v: number) => string
 }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div
-        style={{
-          fontSize: '0.65rem',
-          color: C.textMute,
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          marginBottom: 6,
-        }}
-      >
-        {label}
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: C.textMute }}>{label}</span>
+        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: C.text, fontFamily: 'monospace' }}>
+          {formatValue(value)}
+        </span>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            background: C.panelAlt,
-            border: `1px solid ${C.border}`,
-            borderRadius: 8,
-            padding: '0 0.65rem',
-          }}
-        >
-          {prefix && <span style={{ color: C.textMute, marginRight: 4 }}>{prefix}</span>}
-          <input
-            type="number"
-            value={value}
-            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-            style={{
-              flex: 1,
-              padding: '0.55rem 0',
-              background: 'transparent',
-              border: 'none',
-              color: C.text,
-              fontSize: '0.95rem',
-              fontFamily: 'monospace',
-              outline: 'none',
-              minWidth: 0,
-            }}
-          />
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            background: C.panelAlt,
-            border: `1px solid ${C.border}`,
-            borderRadius: 8,
-            overflow: 'hidden',
-          }}
-        >
-          {(['M', 'B'] as const).map((u) => (
-            <button
-              key={u}
-              onClick={() => onUnitChange(u)}
-              type="button"
-              style={{
-                padding: '0 0.85rem',
-                background: unit === u ? C.accent : 'transparent',
-                color: unit === u ? 'white' : C.textMute,
-                border: 'none',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {u}
-            </button>
-          ))}
-        </div>
-      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ width: '100%', accentColor: C.accent, display: 'block' }}
+      />
     </div>
+  )
+}
+
+function PresetChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      type="button"
+      style={{
+        padding: '0.4rem 0.85rem',
+        background: active ? C.accent : 'transparent',
+        color: active ? 'white' : C.textMute,
+        border: `1px solid ${active ? C.accent : C.border}`,
+        borderRadius: 999,
+        fontSize: '0.72rem',
+        fontWeight: 700,
+        letterSpacing: '0.02em',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+      }}
+    >
+      {label}
+    </button>
   )
 }
