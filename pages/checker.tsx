@@ -1,6 +1,5 @@
 import Head from 'next/head'
 import { useState } from 'react'
-import { useAccount } from 'wagmi'
 import { Layout } from '../components/Layout'
 import { CRITERIA, BONUS_CRITERIA, SYBIL_FLAGS } from '../lib/baseCheckerCriteria'
 
@@ -56,7 +55,6 @@ const TIER_COLORS: Record<Result['tier'], { bg: string; fg: string; label: strin
 }
 
 export default function CheckerPage() {
-  const { address: connected } = useAccount()
   const [input, setInput] = useState('')
   const [baseAppInput, setBaseAppInput] = useState('')
   const [fidInput, setFidInput] = useState('')
@@ -83,7 +81,7 @@ export default function CheckerPage() {
     }
   }
 
-  const targetAddress = input.trim() || connected || ''
+  const targetAddress = input.trim()
 
   return (
     <Layout title="Base Airdrop Checker">
@@ -133,7 +131,7 @@ export default function CheckerPage() {
             </label>
             <input
               type="text"
-              placeholder={connected ? `Default: ${connected.slice(0, 8)}…${connected.slice(-6)}` : '0x…'}
+              placeholder="0x…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               style={{

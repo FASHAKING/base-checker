@@ -29,6 +29,11 @@ const nextConfig = {
     outputFileTracingIgnores: ['**/.git/**/*'],
   },
   outputFileTracing: true,
+  async redirects() {
+    return [
+      { source: '/', destination: '/checker', permanent: false },
+    ]
+  },
 }
 
 module.exports = nextConfig
