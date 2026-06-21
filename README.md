@@ -409,8 +409,8 @@ Calibrated against actual L2 launches: ARB ($1.40 launch / $14B FDV → $0.40 no
 | Total supply | **10,000,000,000** ($BASE) | Matches ARB, STRK, JUP. Sub-$1 token price is realistic for L2 launches |
 | Airdrop % | 10% | Mean of ARB 11.62% / OP 5% / ZK 17.5% / ZRO 8.5% |
 | FDV at launch | $3,000,000,000 | Between JUP ($6.5B) and ZK ($5B). With 10B supply → $0.30/token (matches ZK $0.22, JUP $0.65) |
-| Floor | **1,000 $BASE** | Hard floor in *tokens*. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300 |
-| Whale cap 🐋 | **100,000 $BASE** | Hard cap in *tokens*. Matches ZK's top tier exactly. Real caps: ARB 10,250 · OP 27,500 · ZK 100,000 · ZRO 10,000 · STRK 50,000 |
+| Floor | **500 $BASE** | Hard floor in *tokens*. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300 |
+| Whale cap 🎁 | **25,000 $BASE** | Hard cap in *tokens*. Sits between ARB (10,250) and OP (27,500) — realistic and friendly, has direct precedent without feeling inflated |
 | Curve exponent | 1.5 | Mild whale skew; 50%-score user gets ~35% of whale tokens. Linear (1.0) would give 50%; ARB's actual curve was closer to 1.8 |
 | Farcaster boost | 20% | Multiplicative bonus on top of curve when FID is linked. Full 20% for early-FID + Power Badge users; 0% (no penalty) without |
 
@@ -425,11 +425,11 @@ Every successful L2 drop bounded allocations on both ends:
 
 Caps are now **token-denominated** (the way real drops were announced). USD is derived from FDV ÷ supply × your token allocation.
 
-| Scenario | FDV | Token price | Floor ($BASE) | Cap 🐋 ($BASE) | Whale USD value |
+| Scenario | FDV | Token price | Floor ($BASE) | Cap 🎁 ($BASE) | Whale USD value |
 |---|---|---|---|---|---|
-| **Bear / sustained** | $1B | $0.10 | 500 | 50,000 | ~$5,000 |
-| **Base case** (default) | $3B | $0.30 | 1,000 | 100,000 | ~$30,000 |
-| **Bull / launch day** | $6B | $0.60 | 2,000 | 250,000 | ~$150,000 |
+| **Bear / sustained** | $1B | $0.10 | 250 | 10,000 (ARB modal) | ~$1,000 |
+| **Base case** (default) | $3B | $0.30 | 500 | 25,000 (OP top) | ~$7,500 |
+| **Bull / launch day** | $6B | $0.60 | 1,000 | 50,000 (STRK max) | ~$30,000 |
 
 ### Formula
 
@@ -474,19 +474,19 @@ Inspired by LayerZero's quality-user multipliers and Optimism's Gitcoin Passport
 
 ### Default math walk-through
 
-With **Base case** defaults: 10B supply, $3B FDV → token price = **$0.30**, floor = 1,000 $BASE, cap = **100,000 $BASE 🐋**, curve exponent 1.5.
+With **Base case** defaults: 10B supply, $3B FDV → token price = **$0.30**, floor = 500 $BASE, cap = **25,000 $BASE 🎁**, curve exponent 1.5.
 
 | Score % | Raw curve value | After floor/cap clamp | USD @ $0.30 |
 |---|---|---|---|
 | 0% (fails min eligibility) | 0 | **0 $BASE** | $0 |
-| ~3% (kink point) | ≈1,000 $BASE | **floored at 1,000 $BASE** | $300 |
-| 25% (low) | ≈12,500 $BASE | **12,500 $BASE** | $3,750 |
-| 50% (medium) | ≈35,355 $BASE | **35,355 $BASE** | $10,607 |
-| 75% (high) | ≈64,952 $BASE | **64,952 $BASE** | $19,486 |
-| 100% (whale, max, no FID) | 100,000 $BASE | **capped at 100,000 $BASE 🐋** | $30,000 |
-| 100% + max Farcaster boost (+20%) | 120,000 $BASE → capped | **capped at 100,000 $BASE 🐋** | $30,000 |
+| ~6% (kink point) | ≈500 $BASE | **floored at 500 $BASE** | $150 |
+| 25% (low) | ≈3,125 $BASE | **3,125 $BASE** | $938 |
+| 50% (medium) | ≈8,839 $BASE | **8,839 $BASE** | $2,652 |
+| 75% (high) | ≈16,238 $BASE | **16,238 $BASE** | $4,871 |
+| 100% (whale, max, no FID) | 25,000 $BASE | **capped at 25,000 $BASE 🎁** | $7,500 |
+| 100% + max Farcaster boost (+20%) | 30,000 $BASE → capped | **capped at 25,000 $BASE 🎁** | $7,500 |
 
-Anyone below ~3% of max gets the floor (1,000 $BASE). Above that, they scale up the curve. At 100% they hit the cap (100,000 $BASE) — even Farcaster boosters get clamped here. The token amounts match what real drop whales got (ARB 10,250 · OP 27,500 · ZK 100,000 · STRK 50,000) and the USD values land in the historical envelope.
+Anyone below ~6% of max gets the floor (500 $BASE). Above that, they scale up the curve. At 100% they hit the cap (25,000 $BASE) — even Farcaster boosters get clamped here. The 25k cap sits between ARB's 10,250 and OP's 27,500 — friendly, realistic, and has direct precedent without feeling inflated.
 
 ---
 

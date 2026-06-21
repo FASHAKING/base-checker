@@ -220,14 +220,14 @@ export default function AllocationPage() {
             value={params.floorTokens}
             onChange={(v) => updateParam('floorTokens', v)}
             suffix="$BASE"
-            hint={`Hard FLOOR in tokens. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300. Default 1,000 = ${formatUsd(params.floorTokens * (params.fdvUsd / params.totalSupply))} at current FDV.`}
+            hint={`Hard FLOOR. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300. Default 500 = ${formatUsd(params.floorTokens * (params.fdvUsd / params.totalSupply))} at current FDV.`}
           />
           <NumberRow
-            label="Whale cap ($BASE max-score user gets) 🐋"
+            label="Whale cap ($BASE max-score user gets) 🎁"
             value={params.whaleAnchorTokens}
             onChange={(v) => updateParam('whaleAnchorTokens', v)}
             suffix="$BASE"
-            hint={`Hard CAP in tokens. Real caps: ARB 10,250 · OP 27,500 · ZK 100,000 · ZRO 10,000 · STRK 50,000. Default 100,000 matches ZK whales = ${formatUsd(params.whaleAnchorTokens * (params.fdvUsd / params.totalSupply))} at current FDV.`}
+            hint={`Hard CAP. Real caps: ARB 10,250 · OP 27,500 · ZK 100,000 · ZRO 10,000 · STRK 50,000. Default 25,000 sits between ARB and OP = ${formatUsd(params.whaleAnchorTokens * (params.fdvUsd / params.totalSupply))} at current FDV.`}
           />
           <NumberRow
             label="Farcaster boost (max)"
@@ -376,7 +376,7 @@ export default function AllocationPage() {
                     )}
                     {estimate.hitCap && (
                       <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#5b21b6', fontWeight: 600 }}>
-                        ⬇️ Capped at {formatCompactNumber(params.whaleAnchorTokens)} $BASE 🐋 — max tier reached
+                        ⬇️ Capped at {formatCompactNumber(params.whaleAnchorTokens)} $BASE 🎁 — max tier reached
                       </div>
                     )}
                     <div style={{ marginTop: 8, fontSize: '0.65rem', color: '#9ca3af' }}>
@@ -394,7 +394,7 @@ export default function AllocationPage() {
               <BreakdownRow label="Pool USD value @ FDV" value={formatUsd(estimate.poolUsd)} />
               <BreakdownRow label="Token price (FDV ÷ supply)" value={formatUsd(estimate.tokenPriceUsd)} />
               <BreakdownRow label="Floor (min eligible)" value={`${formatCompactNumber(estimate.floorTokens)} $BASE (${formatUsd(estimate.floorTokens * estimate.tokenPriceUsd)})`} />
-              <BreakdownRow label="Cap (max eligible) 🐋" value={`${formatCompactNumber(estimate.whaleAnchorTokens)} $BASE (${formatUsd(estimate.whaleAnchorTokens * estimate.tokenPriceUsd)})`} />
+              <BreakdownRow label="Cap (max eligible) 🎁" value={`${formatCompactNumber(estimate.whaleAnchorTokens)} $BASE (${formatUsd(estimate.whaleAnchorTokens * estimate.tokenPriceUsd)})`} />
               <BreakdownRow label="Your score" value={`${result.totalScore} / ${result.maxScore} (${(estimate.scoreRatio * 100).toFixed(1)}%)`} />
               <BreakdownRow label={`Base curve value (^${params.curveExponent})`} value={`${formatCompactNumber(estimate.baseCurveTokens)} $BASE`} />
               <BreakdownRow
@@ -446,8 +446,8 @@ export default function AllocationPage() {
               <li><strong>Supply 10B</strong> — matches ARB, STRK, JUP. Gives a sub-$1 token price (more realistic for L2 launches than 1B which would imply $0.30+)</li>
               <li><strong>Airdrop 10%</strong> — mean of ARB 11.6% / OP 5% / ZK 17.5% / ZRO 8.5%</li>
               <li><strong>FDV $3B</strong> — between JUP ($6.5B) and ZK ($5B). With 10B supply → $0.30/token, matches ZK $0.22 / JUP $0.65</li>
-              <li><strong>Floor 1,000 $BASE</strong> — min-eligible user gets at least this many tokens. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300</li>
-              <li><strong>Whale cap 100,000 $BASE 🐋</strong> — max-score user gets at most this. Matches ZK's top tier exactly. Real caps: ARB 10,250 · OP 27,500 · ZK 100,000 · ZRO 10,000 · STRK 50,000</li>
+              <li><strong>Floor 500 $BASE</strong> — min-eligible user gets at least this many tokens. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300</li>
+              <li><strong>Whale cap 25,000 $BASE 🎁</strong> — max-score user gets at most this. Sits between ARB (10,250) and OP (27,500) — friendly and realistic, has direct precedent</li>
               <li><strong>Curve exponent 1.5</strong> — mild whale skew; a 50%-score user gets ~35% of whale tokens (linear would give 50%, ARB's actual curve was steeper)</li>
               <li><strong>Farcaster boost 20%</strong> — multiplicative bonus on top of curve when FID is linked. Full +20% for early-FID + Power Badge users; smaller boost for casual Farcaster users; 0% (no penalty) for non-Farcaster users. Inspired by LayerZero's quality-user multipliers and Optimism's Gitcoin Passport weighting</li>
             </ul>
