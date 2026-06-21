@@ -222,6 +222,21 @@ export default function AllocationPage() {
             L2 tokens typically lose 45-90% within months of launch.
           </div>
 
+          <div
+            style={{
+              fontSize: '0.7rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: '#0052FF',
+              fontWeight: 700,
+              marginBottom: 8,
+              paddingBottom: 6,
+              borderBottom: '2px solid #dbeafe',
+            }}
+          >
+            🎛️ Main tokenomics knobs
+          </div>
+
           <NumberRow
             label="Total $BASE supply"
             value={params.totalSupply}
@@ -230,7 +245,7 @@ export default function AllocationPage() {
             hint="ARB 10B · STRK 10B · JUP 10B · OP 4.3B · ZK 21B · ZRO 1B. Default 10B."
           />
           <NumberRow
-            label="Airdrop allocation"
+            label="Airdrop allocation (% of supply)"
             value={params.airdropPct * 100}
             onChange={(v) => updateParam('airdropPct', v / 100)}
             suffix="%"
@@ -243,6 +258,22 @@ export default function AllocationPage() {
             suffix="USD"
             hint="Default $3B (between JUP $6.5B and ZK $5B). Bull case $6B. Sustained 6-mo: $1B."
           />
+
+          <div
+            style={{
+              fontSize: '0.7rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: '#6b7280',
+              fontWeight: 700,
+              marginTop: 16,
+              marginBottom: 8,
+              paddingBottom: 6,
+              borderBottom: '1px solid #e5e7eb',
+            }}
+          >
+            Distribution shape
+          </div>
           <NumberRow
             label="Floor ($BASE min-eligible user gets)"
             value={params.floorTokens}
