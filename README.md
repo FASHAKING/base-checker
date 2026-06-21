@@ -409,8 +409,8 @@ Calibrated against actual L2 launches: ARB ($1.40 launch / $14B FDV → $0.40 no
 | Total supply | **10,000,000,000** ($BASE) | Matches ARB, STRK, JUP. Sub-$1 token price is realistic for L2 launches |
 | Airdrop % | 10% | Mean of ARB 11.62% / OP 5% / ZK 17.5% / ZRO 8.5% |
 | FDV at launch | $3,000,000,000 | Between JUP ($6.5B) and ZK ($5B). With 10B supply → $0.30/token (matches ZK $0.22, JUP $0.65) |
-| Floor | **$1,000** | Hard floor for min-eligible users. Mid-range vs. ARB $1.7k, OP $450, ZK $100, ZRO $225 |
-| Whale anchor (cap) | **$50,000** | Hard cap for max-score users. Matches OP outlier whales. Real caps: ARB $14k modal, OP $50k outlier, ZRO $45k, STRK $100k |
+| Floor | **1,000 $BASE** | Hard floor in *tokens*. Real floors: ARB 1,250 · OP 250 · ZK 450 · ZRO 50 · STRK 300 |
+| Whale cap 🐋 | **100,000 $BASE** | Hard cap in *tokens*. Matches ZK's top tier exactly. Real caps: ARB 10,250 · OP 27,500 · ZK 100,000 · ZRO 10,000 · STRK 50,000 |
 | Curve exponent | 1.5 | Mild whale skew; 50%-score user gets ~35% of whale tokens. Linear (1.0) would give 50%; ARB's actual curve was closer to 1.8 |
 | Farcaster boost | 20% | Multiplicative bonus on top of curve when FID is linked. Full 20% for early-FID + Power Badge users; 0% (no penalty) without |
 
@@ -423,11 +423,13 @@ Every successful L2 drop bounded allocations on both ends:
 
 ### Scenarios (one-click presets on the page)
 
-| Scenario | FDV | Token price | Floor | Cap (whale) |
-|---|---|---|---|---|
-| **Bear / sustained** | $1B | $0.10 | $300 | $20,000 |
-| **Base case** (default) | $3B | $0.30 | $1,000 | $50,000 |
-| **Bull / launch day** | $6B | $0.60 | $2,000 | $100,000 |
+Caps are now **token-denominated** (the way real drops were announced). USD is derived from FDV ÷ supply × your token allocation.
+
+| Scenario | FDV | Token price | Floor ($BASE) | Cap 🐋 ($BASE) | Whale USD value |
+|---|---|---|---|---|---|
+| **Bear / sustained** | $1B | $0.10 | 500 | 50,000 | ~$5,000 |
+| **Base case** (default) | $3B | $0.30 | 1,000 | 100,000 | ~$30,000 |
+| **Bull / launch day** | $6B | $0.60 | 2,000 | 250,000 | ~$150,000 |
 
 ### Formula
 
@@ -472,19 +474,19 @@ Inspired by LayerZero's quality-user multipliers and Optimism's Gitcoin Passport
 
 ### Default math walk-through
 
-With **Base case** defaults: 10B supply, $3B FDV → token price = **$0.30**, floor = $1,000 (≈3,333 $BASE), cap = $50,000 (≈166,667 $BASE), curve exponent 1.5.
+With **Base case** defaults: 10B supply, $3B FDV → token price = **$0.30**, floor = 1,000 $BASE, cap = **100,000 $BASE 🐋**, curve exponent 1.5.
 
 | Score % | Raw curve value | After floor/cap clamp | USD @ $0.30 |
 |---|---|---|---|
 | 0% (fails min eligibility) | 0 | **0 $BASE** | $0 |
-| ~7% (kink point) | ≈3,333 $BASE | **floored at 3,333 $BASE** | $1,000 |
-| 25% (low) | ≈20,830 $BASE | **20,830 $BASE** | $6,250 |
-| 50% (medium) | ≈58,930 $BASE | **58,930 $BASE** | $17,679 |
-| 75% (high) | ≈108,250 $BASE | **108,250 $BASE** | $32,475 |
-| 100% (whale, max, no FID) | 166,667 $BASE | **capped at 166,667 $BASE** | $50,000 |
-| 100% + max Farcaster boost (20%) | 200,000 $BASE → capped | **capped at 166,667 $BASE** | $50,000 |
+| ~3% (kink point) | ≈1,000 $BASE | **floored at 1,000 $BASE** | $300 |
+| 25% (low) | ≈12,500 $BASE | **12,500 $BASE** | $3,750 |
+| 50% (medium) | ≈35,355 $BASE | **35,355 $BASE** | $10,607 |
+| 75% (high) | ≈64,952 $BASE | **64,952 $BASE** | $19,486 |
+| 100% (whale, max, no FID) | 100,000 $BASE | **capped at 100,000 $BASE 🐋** | $30,000 |
+| 100% + max Farcaster boost (+20%) | 120,000 $BASE → capped | **capped at 100,000 $BASE 🐋** | $30,000 |
 
-Anyone below ~7% of max gets the floor ($1,000). Above that, they scale up the curve. At 100% they hit the cap ($50,000) — even Farcaster boosters get clamped here. These figures align with what actual users received in comparable drops (ARB $1.7k–$14k, OP $450–$50k, ZRO $225–$45k, STRK $100–$100k).
+Anyone below ~3% of max gets the floor (1,000 $BASE). Above that, they scale up the curve. At 100% they hit the cap (100,000 $BASE) — even Farcaster boosters get clamped here. The token amounts match what real drop whales got (ARB 10,250 · OP 27,500 · ZK 100,000 · STRK 50,000) and the USD values land in the historical envelope.
 
 ---
 

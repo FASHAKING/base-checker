@@ -17,8 +17,8 @@ export type AllocationParams = {
   totalSupply: number          // total $BASE token supply
   airdropPct: number           // 0..1 — fraction of supply going to airdrop
   fdvUsd: number               // fully diluted valuation in USD
-  floorUsd: number             // USD a minimum-eligible user receives (hard FLOOR)
-  whaleAnchorUsd: number       // USD a max-score user receives (hard CAP)
+  floorTokens: number          // $BASE a minimum-eligible user receives (hard FLOOR)
+  whaleAnchorTokens: number    // $BASE a max-score user receives (hard CAP)
   curveExponent: number        // 1.0 = linear, 1.5 = mild whale skew
   farcasterBoostPct: number    // 0..1 — multiplicative boost when FID is linked.
                                //         Scales with Farcaster bonus points (0/1/2/3).
@@ -29,8 +29,8 @@ export const DEFAULT_PARAMS: AllocationParams = {
   totalSupply: 10_000_000_000,
   airdropPct: 0.10,
   fdvUsd: 3_000_000_000,
-  floorUsd: 1_000,
-  whaleAnchorUsd: 50_000,
+  floorTokens: 1_000,
+  whaleAnchorTokens: 100_000,
   curveExponent: 1.5,
   farcasterBoostPct: 0.20,
 }
@@ -49,26 +49,26 @@ export const SCENARIOS: Record<
 > = {
   bear: {
     label: 'Bear / sustained',
-    note: '6-month post-launch reality. Tokens lost 45-90% from launch in every comparable drop.',
+    note: '6-month post-launch reality. Lower FDV but same token allocation — your bag still matters.',
     fdvUsd: 1_000_000_000,
-    floorUsd: 300,
-    whaleAnchorUsd: 20_000,
+    floorTokens: 500,
+    whaleAnchorTokens: 50_000,
     farcasterBoostPct: 0.15,
   },
   base: {
     label: 'Base case',
-    note: 'Default. FDV between JUP ($6.5B) and ZK ($5B). Cap matches OP outlier whales (~$50k).',
+    note: 'Default. 100,000 $BASE cap matches ZK\'s top tier exactly. ✨ Realistic and hopium-coded.',
     fdvUsd: 3_000_000_000,
-    floorUsd: 1_000,
-    whaleAnchorUsd: 50_000,
+    floorTokens: 1_000,
+    whaleAnchorTokens: 100_000,
     farcasterBoostPct: 0.20,
   },
   bull: {
     label: 'Bull / launch day',
-    note: 'Strong launch closer to ZRO ($4.5B) or OP ($8B). Cap matches STRK rare-whale tier (~$100k).',
+    note: 'Strong launch + generous distribution. 250k $BASE cap is in ZK / STRK whale territory.',
     fdvUsd: 6_000_000_000,
-    floorUsd: 2_000,
-    whaleAnchorUsd: 100_000,
+    floorTokens: 2_000,
+    whaleAnchorTokens: 250_000,
     farcasterBoostPct: 0.25,
   },
 }
@@ -103,8 +103,9 @@ export function estimateAllocation(
   const poolTokens = params.totalSupply * params.airdropPct
   const tokenPriceUsd = params.fdvUsd / params.totalSupply
   const poolUsd = poolTokens * tokenPriceUsd
-  const whaleAnchorTokens = params.whaleAnchorUsd / tokenPriceUsd
-  const floorTokens = params.floorUsd / tokenPriceUsd
+  // Cap/floor are token-denominated — USD is derived from FDV × supply.
+  const whaleAnchorTokens = params.whaleAnchorTokens
+  const floorTokens = params.floorTokens
 
   // Farcaster boost: scales with how many Farcaster points the user earned (0..3 → 0..1).
   // Defaults to 1.0× when no FID provided or wallet not linked.
