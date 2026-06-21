@@ -13,6 +13,7 @@ import {
 } from './baseCheckerCriteria'
 import { MINI_APP_REGISTRY } from './miniAppRegistry'
 import { lookupFarcaster, scoreFarcaster, FarcasterProfile } from './farcaster'
+import { lookupBasename, BasenameInfo } from './basename'
 
 const publicClient = createPublicClient({
   chain: base,
@@ -116,10 +117,12 @@ export type CheckerResult = {
     profile: FarcasterProfile | null
     note: string | null
   }
+  basename: BasenameInfo
   dataSources: {
     rpc: boolean
     basescan: boolean
     neynar: boolean
+    basename: boolean
   }
   warnings: string[]
 }
@@ -229,6 +232,27 @@ export async function checkWallet(
     warnings.push('Identity DB check skipped (Prisma unavailable).')
   }
 
+  // 3b. Basename lookup (via L1 ENS Universal Resolver, handles .base.eth)
+  let basenameInfo: BasenameInfo = {
+    address,
+    name: null,
+    hasBasename: false,
+    isShortBasename: false,
+  }
+  let basenameOk = false
+  try {
+    basenameInfo = await lookupBasename(address)
+    basenameOk = true
+  } catch {
+    warnings.push('Basename lookup failed (L1 ENS unreachable).')
+  }
+  const basenameValue = basenameInfo.isShortBasename ? 2 : basenameInfo.hasBasename ? 1 : 0
+  const basenameDisplay = basenameInfo.hasBasename
+    ? `${basenameInfo.name}${basenameInfo.isShortBasename ? ' (short ≤6)' : ''}`
+    : basenameInfo.name
+    ? `Primary: ${basenameInfo.name} (not a Basename)`
+    : 'No primary name set'
+
   // 4. Compute scores per criterion
   const valueByCriterion: Record<string, { value: number; display: string }> = {
     tx_count: { value: txCount, display: `${txCount} txs` },
@@ -246,6 +270,7 @@ export async function checkWallet(
       value: identityValue,
       display: hasBaseVerify ? `Verified (${identityProvider})` : 'Not verified',
     },
+    basename: { value: basenameValue, display: basenameDisplay },
   }
 
   const metrics: CheckerMetric[] = CRITERIA.map((c) => {
@@ -489,7 +514,8 @@ export async function checkWallet(
       profile: farcasterProfile,
       note: farcasterNote,
     },
-    dataSources: { rpc: rpcOk, basescan: basescanOk, neynar: neynarOk },
+    basename: basenameInfo,
+    dataSources: { rpc: rpcOk, basescan: basescanOk, neynar: neynarOk, basename: basenameOk },
     warnings,
   }
 }
