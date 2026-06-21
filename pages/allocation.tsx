@@ -11,12 +11,25 @@ import {
   formatUsd,
 } from '../lib/allocationModel'
 
+type BonusMetric = {
+  id: string
+  name: string
+  category: string
+  value: number
+  displayValue: string
+  tierLabel: string
+  pointsEarned: number
+  maxPoints: number
+  inspiredBy: string[]
+}
+
 type CheckerResult = {
   address: string
   totalScore: number
   maxScore: number
   bonusScore: number
   bonusMaxScore: number
+  bonusMetrics: BonusMetric[]
   tier: 'ineligible' | 'low' | 'medium' | 'high' | 'whale'
   minimumEligibility: {
     meets: boolean
@@ -24,6 +37,13 @@ type CheckerResult = {
     hasCommitment: boolean
     hasCriticalSybil: boolean
     failureReasons: string[]
+  }
+  farcaster?: {
+    provided: boolean
+    fid: number | null
+    walletLinked: boolean
+    profile: { username: string | null; powerBadge: boolean; followerCount: number; fidAgeBucket: string } | null
+    note: string | null
   }
   warnings: string[]
 }
@@ -209,6 +229,13 @@ export default function AllocationPage() {
             suffix="USD"
             hint="Hard CAP. Median power-user payouts: ARB $14k, OP $50k (outlier), ZRO $45k. Default $5k = median."
           />
+          <NumberRow
+            label="Farcaster boost (max)"
+            value={params.farcasterBoostPct * 100}
+            onChange={(v) => updateParam('farcasterBoostPct', v / 100)}
+            suffix="%"
+            hint="Multiplicative bonus on top of curve when FID is linked. Scales with FC tier (0/⅓/⅔/full). Default +20% for full-tier Farcaster users. No FID → no boost, no penalty."
+          />
 
           <button
             onClick={() => setShowAdvanced((s) => !s)}
@@ -325,14 +352,31 @@ export default function AllocationPage() {
                     <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 6 }}>
                       = {estimate.poolSharePct.toFixed(5)}% of the total airdrop pool
                     </div>
+                    {estimate.farcasterBoostMultiplier > 1 && (
+                      <div
+                        style={{
+                          marginTop: 10,
+                          padding: '0.4rem 0.65rem',
+                          background: '#f3e8ff',
+                          border: '1px solid #d8b4fe',
+                          borderRadius: 8,
+                          fontSize: '0.75rem',
+                          color: '#6b21a8',
+                          fontWeight: 600,
+                          display: 'inline-block',
+                        }}
+                      >
+                        🟣 Farcaster boost active: +{((estimate.farcasterBoostMultiplier - 1) * 100).toFixed(1)}%
+                      </div>
+                    )}
                     {estimate.hitFloor && (
                       <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#1e40af', fontWeight: 600 }}>
-                        ⬆️ Floored at {formatUsd(params.floorUsd)} — your raw curve value was below the floor
+                        ⬆️ Floored at {formatUsd(params.floorUsd)} — your boosted value was below the floor
                       </div>
                     )}
                     {estimate.hitCap && (
                       <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#5b21b6', fontWeight: 600 }}>
-                        ⬇️ Capped at {formatUsd(params.whaleAnchorUsd)} — your raw curve value exceeded the cap
+                        ⬇️ Capped at {formatUsd(params.whaleAnchorUsd)} — your boosted value exceeded the cap
                       </div>
                     )}
                     <div style={{ marginTop: 8, fontSize: '0.65rem', color: '#9ca3af' }}>
@@ -352,7 +396,16 @@ export default function AllocationPage() {
               <BreakdownRow label="Floor (min eligible)" value={`${formatCompactNumber(estimate.floorTokens)} $BASE (${formatUsd(params.floorUsd)})`} />
               <BreakdownRow label="Cap (max eligible)" value={`${formatCompactNumber(estimate.whaleAnchorTokens)} $BASE (${formatUsd(params.whaleAnchorUsd)})`} />
               <BreakdownRow label="Your score" value={`${result.totalScore} / ${result.maxScore} (${(estimate.scoreRatio * 100).toFixed(1)}%)`} />
-              <BreakdownRow label={`Raw curve value (^${params.curveExponent})`} value={`${formatCompactNumber(estimate.uncappedTokens)} $BASE`} />
+              <BreakdownRow label={`Base curve value (^${params.curveExponent})`} value={`${formatCompactNumber(estimate.baseCurveTokens)} $BASE`} />
+              <BreakdownRow
+                label={`Farcaster boost (×${estimate.farcasterBoostMultiplier.toFixed(3)})`}
+                value={
+                  estimate.farcasterBoostMultiplier > 1
+                    ? `+${formatCompactNumber(estimate.boostedTokens - estimate.baseCurveTokens)} $BASE`
+                    : 'no FID linked → 1.0×'
+                }
+              />
+              <BreakdownRow label="After boost (pre-clamp)" value={`${formatCompactNumber(estimate.boostedTokens)} $BASE`} />
               <BreakdownRow
                 label="After floor & cap clamp"
                 value={estimate.eligible ? `${formatCompactNumber(estimate.userTokens)} $BASE` : '0 $BASE (below minimum)'}
@@ -396,6 +449,7 @@ export default function AllocationPage() {
               <li><strong>Floor $500</strong> — min-eligible user payout. Matches ARB's floor:cap ratio (~10%). Real floors: ARB $1.7k, OP $450, ZK $100, ZRO $225</li>
               <li><strong>Whale anchor (cap) $5k</strong> — max-score user payout. Median power-user payout in past drops (ARB $3-6k, OP $3-8k, ZRO $3-8k, ZK $2-5k)</li>
               <li><strong>Curve exponent 1.5</strong> — mild whale skew; a 50%-score user gets ~35% of whale tokens (linear would give 50%, ARB's actual curve was steeper)</li>
+              <li><strong>Farcaster boost 20%</strong> — multiplicative bonus on top of curve when FID is linked. Full +20% for early-FID + Power Badge users; smaller boost for casual Farcaster users; 0% (no penalty) for non-Farcaster users. Inspired by LayerZero's quality-user multipliers and Optimism's Gitcoin Passport weighting</li>
             </ul>
             <div style={{ marginTop: 12, padding: 10, background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: 8, fontSize: '0.75rem', color: '#1e40af', lineHeight: 1.4 }}>
               <strong>Why floor + cap?</strong> Every major L2 drop (ARB, OP, ZK, ZRO, STRK) used both.

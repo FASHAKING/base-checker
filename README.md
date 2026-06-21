@@ -442,14 +442,32 @@ whaleTokens     = whaleAnchorUsd / tokenPrice         # hard cap
 # 3. Score-based scaling with whale-favoring curve
 scoreRatio      = userScore / maxScore
 curveMultiplier = scoreRatio ^ curveExponent          # 1.5 default
-rawTokens       = whaleTokens × curveMultiplier
+baseCurveTokens = whaleTokens × curveMultiplier
 
-# 4. Clamp between floor and cap (matches ARB/OP/ZK/ZRO design)
-userTokens      = min(whaleTokens, max(floorTokens, rawTokens))
+# 4. Farcaster boost (multiplicative, optional)
+# fcPts ∈ {0, 1, 2, 3}; no FID → fcPts = 0 → boost = 1.0× (no penalty)
+fcBoostMult     = 1 + farcasterBoostPct × (fcPts / 3)  # 20% default
+boostedTokens   = baseCurveTokens × fcBoostMult
+
+# 5. Clamp between floor and cap (boost can push toward cap, never past)
+userTokens      = min(whaleTokens, max(floorTokens, boostedTokens))
 userUsd         = userTokens × tokenPrice
 ```
 
 The pool size and "% of pool" become **informational only** — we no longer guess how many wallets are eligible, because that would require indexing every wallet on Base.
+
+### Farcaster boost details
+
+Multiplicative bonus that activates only when the user provides an FID **and** the wallet is verified-linked to it (anti-FID-claim sybil from earlier). Scales with the Farcaster bonus criterion's earned points:
+
+| Farcaster signal | Pts | Boost @ default 20% |
+|---|---|---|
+| No FID provided | 0 | 1.00× (none) |
+| FID linked only | 1 | 1.067× (+6.7%) |
+| Linked + Power Badge or 1k+ followers | 2 | 1.133× (+13.3%) |
+| Linked + quality + early FID (≤200k) | 3 | 1.200× (+20%) |
+
+Inspired by LayerZero's quality-user multipliers and Optimism's Gitcoin Passport weighting — real drops have used identity-based multipliers as a non-compulsory bonus on top of the activity-based allocation.
 
 ### Default math walk-through
 
