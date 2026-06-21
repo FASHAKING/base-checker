@@ -499,7 +499,7 @@ function ResultPanel({
           lineHeight: 1,
         }}
       >
-        {formatUsd(estimate.userUsd)}
+        ${Math.round(estimate.userUsd).toLocaleString('en-US')}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
@@ -686,21 +686,26 @@ function CriterionRow({
   metric?: Metric
   bonus?: boolean
 }) {
+  const [open, setOpen] = useState(false)
   const passed = !!metric && metric.pointsEarned > 0
   const headColor = passed ? (bonus ? C.purple : C.green) : C.red
   return (
-    <div
-      style={{
-        padding: '0.95rem 0 1rem',
-        borderBottom: `1px solid ${C.borderSoft}`,
-      }}
-    >
-      <div
+    <div style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        type="button"
         style={{
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          padding: '0.95rem 0',
           display: 'flex',
           alignItems: 'center',
           gap: 12,
-          marginBottom: 8,
+          cursor: 'pointer',
+          color: 'inherit',
+          fontFamily: 'inherit',
+          textAlign: 'left',
         }}
       >
         <span
@@ -729,65 +734,75 @@ function CriterionRow({
         >
           {criterion.name}
         </span>
-        {metric && (
-          <span
-            style={{
-              marginLeft: 'auto',
-              fontSize: '0.7rem',
-              color: passed ? headColor : C.textDim,
-              fontWeight: 700,
-              fontFamily: 'monospace',
-            }}
-          >
-            {bonus ? '+' : ''}
-            {metric.pointsEarned}/{metric.maxPoints}
-          </span>
-        )}
-      </div>
-      {/* Tier sub-bullets */}
-      {criterion.tiers.map((t) => {
-        const tierMet = !!metric && metric.value >= t.threshold
-        return (
-          <div key={t.label} style={{ display: 'flex', gap: 10, marginLeft: 6, marginBottom: 4 }}>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {metric && (
             <span
               style={{
-                width: 14,
-                flexShrink: 0,
-                color: tierMet ? C.green : C.textDim,
-                fontSize: '0.85rem',
-                lineHeight: 1.4,
+                fontSize: '0.7rem',
+                color: passed ? headColor : C.textDim,
                 fontWeight: 700,
-                textAlign: 'center',
+                fontFamily: 'monospace',
               }}
             >
-              {tierMet ? PASS : FAIL}
+              {bonus ? '+' : ''}
+              {metric.pointsEarned}/{metric.maxPoints}
             </span>
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  fontSize: '0.8rem',
-                  color: tierMet ? C.text : C.textMute,
-                  lineHeight: 1.4,
-                }}
-              >
-                {t.label} <span style={{ color: C.textDim, fontWeight: 400 }}>(+{t.points} pt{t.points > 1 ? 's' : ''})</span>
-              </div>
-              {metric && (
-                <div
+          )}
+          <span style={{ color: C.textMute, fontSize: '1rem', fontWeight: 300, lineHeight: 1, width: 12, textAlign: 'center' }}>
+            {open ? '−' : '+'}
+          </span>
+        </span>
+      </button>
+      {open && (
+        <div style={{ paddingBottom: '0.85rem' }}>
+          {criterion.tiers.map((t) => {
+            const tierMet = !!metric && metric.value >= t.threshold
+            return (
+              <div key={t.label} style={{ display: 'flex', gap: 10, marginLeft: 6, marginBottom: 4 }}>
+                <span
                   style={{
-                    fontSize: '0.72rem',
-                    color: C.textDim,
-                    fontFamily: 'monospace',
-                    marginTop: 1,
+                    width: 14,
+                    flexShrink: 0,
+                    color: tierMet ? C.green : C.textDim,
+                    fontSize: '0.85rem',
+                    lineHeight: 1.4,
+                    fontWeight: 700,
+                    textAlign: 'center',
                   }}
                 >
-                  {metric.displayValue}
+                  {tierMet ? PASS : FAIL}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: '0.8rem',
+                      color: tierMet ? C.text : C.textMute,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {t.label}{' '}
+                    <span style={{ color: C.textDim, fontWeight: 400 }}>
+                      (+{t.points} pt{t.points > 1 ? 's' : ''})
+                    </span>
+                  </div>
+                  {metric && (
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        color: C.textDim,
+                        fontFamily: 'monospace',
+                        marginTop: 1,
+                      }}
+                    >
+                      {metric.displayValue}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        )
-      })}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -819,17 +834,27 @@ function RubricList() {
 }
 
 function RubricRow({ criterion, bonus }: { criterion: Criterion; bonus?: boolean }) {
+  const [open, setOpen] = useState(false)
   return (
-    <div
-      style={{
-        padding: '0.95rem 0 1rem',
-        borderBottom: `1px solid ${C.borderSoft}`,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-        <span style={{ width: 18, color: C.textDim, fontSize: '0.95rem', textAlign: 'center', fontWeight: 700 }}>
-          −
-        </span>
+    <div style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        type="button"
+        style={{
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          padding: '0.95rem 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          cursor: 'pointer',
+          color: 'inherit',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+        }}
+      >
+        <span style={{ width: 18, color: C.textDim, fontSize: '0.95rem', textAlign: 'center', fontWeight: 700 }}>·</span>
         <span
           style={{
             fontSize: '0.78rem',
@@ -841,22 +866,31 @@ function RubricRow({ criterion, bonus }: { criterion: Criterion; bonus?: boolean
         >
           {criterion.name}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: C.textDim, fontFamily: 'monospace' }}>
-          {bonus ? '+' : ''}
-          {Math.max(...criterion.tiers.map((t) => t.points))} pts max
-        </span>
-      </div>
-      <div style={{ fontSize: '0.78rem', color: C.textMute, marginLeft: 30, marginBottom: 6, lineHeight: 1.5 }}>
-        {criterion.description}
-      </div>
-      {criterion.tiers.map((t) => (
-        <div key={t.label} style={{ display: 'flex', gap: 10, marginLeft: 30, fontSize: '0.75rem', color: C.textDim, marginBottom: 2 }}>
-          <span>·</span>
-          <span>
-            {t.label} = +{t.points} pt{t.points > 1 ? 's' : ''}
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: '0.65rem', color: C.textDim, fontFamily: 'monospace' }}>
+            {bonus ? '+' : ''}
+            {Math.max(...criterion.tiers.map((t) => t.points))} pts max
           </span>
+          <span style={{ color: C.textMute, fontSize: '1rem', fontWeight: 300, lineHeight: 1, width: 12, textAlign: 'center' }}>
+            {open ? '−' : '+'}
+          </span>
+        </span>
+      </button>
+      {open && (
+        <div style={{ paddingBottom: '0.85rem' }}>
+          <div style={{ fontSize: '0.78rem', color: C.textMute, marginLeft: 30, marginBottom: 6, lineHeight: 1.5 }}>
+            {criterion.description}
+          </div>
+          {criterion.tiers.map((t) => (
+            <div key={t.label} style={{ display: 'flex', gap: 10, marginLeft: 30, fontSize: '0.75rem', color: C.textDim, marginBottom: 2 }}>
+              <span>·</span>
+              <span>
+                {t.label} = +{t.points} pt{t.points > 1 ? 's' : ''}
+              </span>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   )
 }
