@@ -1,10 +1,15 @@
 // Economic model for the /allocation page.
 //
-// Takes the unified eligibility score from /api/check-wallet and runs it
-// through a tier-multiplier model to estimate $BASE allocation.
+// Honest design choice: we DO NOT estimate "how many wallets are eligible"
+// because that requires indexing every wallet on Base. Instead we anchor on
+// "what does a max-score user get" (whaleAnchorUsd) and scale every other
+// user by their score ratio. The pool size and the user's share of the pool
+// become informational — never an input we have to guess.
 //
-// All inputs are user-tunable on the page; the constants here are the
-// realistic defaults used when no value is provided.
+// Curve exponent shapes the distribution:
+//   1.0 = linear (medium gets 50% of whale)
+//   1.5 = mild whale skew (medium gets 35% of whale) — DEFAULT, matches ARB
+//   2.0 = strong whale skew (medium gets 25% of whale)
 
 import { CheckerResult } from './baseChecker'
 
@@ -12,83 +17,134 @@ export type AllocationParams = {
   totalSupply: number      // total $BASE token supply
   airdropPct: number       // 0..1 — fraction of supply going to airdrop
   fdvUsd: number           // fully diluted valuation in USD
-  eligibleWallets: number  // assumed total eligible wallets
-  multipliers: Record<CheckerResult['tier'], number>
+  floorUsd: number         // USD a minimum-eligible user receives (hard FLOOR)
+  whaleAnchorUsd: number   // USD a max-score user receives (hard CAP)
+  curveExponent: number    // 1.0 = linear, 1.5 = mild whale skew
 }
 
 export const DEFAULT_PARAMS: AllocationParams = {
   totalSupply: 1_000_000_000,
   airdropPct: 0.10,
   fdvUsd: 3_000_000_000,
-  eligibleWallets: 700_000,
-  multipliers: {
-    ineligible: 0,
-    low: 0.25,
-    medium: 1,
-    high: 3,
-    whale: 8,
-  },
+  floorUsd: 500,
+  whaleAnchorUsd: 5_000,
+  curveExponent: 1.5,
 }
 
-// Pre-baked scenarios users can one-click between.
-// Numbers calibrated against actual L2 launches: ARB ($14B FDV → $4B now),
-// OP ($8B → $6B), ZK ($5B → $1.3B), ZRO ($4.5B → $2.5B), STRK ($20B → $2B).
-export const SCENARIOS: Record<string, Partial<AllocationParams> & { label: string; note: string }> = {
+// Real-world anchor: top-tier users in past drops received roughly:
+//   ARB top: ~10,200 ARB × $1.40 = ~$14,000 (most top users got $3-6k)
+//   OP top: ~27,500 OP × $1.80 ≈ $49,500 (outliers; median power user ~$3-8k)
+//   ZRO top: ~5,000 ZRO × $4.50 = ~$22,500 (median ~$3-8k)
+//   ZK top: ~50,000 ZK × $0.22 ≈ $11,000 (median ~$2-5k)
+// Default $5k whale anchor matches the median power-user payout, not the
+// outlier-whale payout. Users can push it up to model the latter.
+
+export const SCENARIOS: Record<
+  string,
+  Partial<AllocationParams> & { label: string; note: string }
+> = {
   bear: {
     label: 'Bear / sustained',
-    note: 'Post-airdrop sell pressure has historically taken L2 tokens down 45–90% from launch. Models the realistic 6-month price.',
+    note: '6-month post-launch reality. Tokens lost 45-90% from launch in every comparable drop.',
     fdvUsd: 1_000_000_000,
-    eligibleWallets: 1_000_000,
+    floorUsd: 200,
+    whaleAnchorUsd: 3_000,
   },
   base: {
     label: 'Base case',
-    note: 'Default. FDV between JUP ($6.5B) and ZK ($5B). Reflects current market, not the 2023 launch peak.',
+    note: 'Default. FDV between JUP ($6.5B) and ZK ($5B). Floor/cap ratio matches ARB ($1.7k/$14k).',
     fdvUsd: 3_000_000_000,
-    eligibleWallets: 700_000,
+    floorUsd: 500,
+    whaleAnchorUsd: 5_000,
   },
   bull: {
     label: 'Bull / launch day',
-    note: 'Models a strong launch — closer to ZRO ($4.5B) or OP ($8B) launch FDV. Optimistic given current conditions.',
+    note: 'Strong launch closer to ZRO ($4.5B) or OP ($8B). Floor/cap matches OP top-tier range.',
     fdvUsd: 6_000_000_000,
-    eligibleWallets: 500_000,
+    floorUsd: 1_000,
+    whaleAnchorUsd: 10_000,
   },
 }
 
 export type AllocationEstimate = {
-  poolTokens: number       // total $BASE in the airdrop pool
-  tokenPriceUsd: number    // FDV / supply
-  baseAllocation: number   // pool / eligibleWallets (the "1x" allocation)
-  tierMultiplier: number   // user's multiplier
-  userTokens: number       // user's $BASE allocation
-  userUsd: number          // user's allocation in USD
-  poolUsd: number          // total pool in USD
+  eligible: boolean
+  failureReasons: string[]
+  poolTokens: number          // total $BASE in airdrop pool (informational)
+  poolUsd: number             // pool in USD (informational)
+  tokenPriceUsd: number       // FDV / supply
+  floorTokens: number         // hard floor — min eligible user gets this
+  whaleAnchorTokens: number   // hard cap — max-score user gets this
+  scoreRatio: number          // userScore / maxScore
+  curveMultiplier: number     // scoreRatio ^ curveExponent (before clamp)
+  uncappedTokens: number      // pre-clamp value
+  hitFloor: boolean           // was the user pushed up to the floor?
+  hitCap: boolean             // was the user pushed down to the cap?
+  userTokens: number          // user's final $BASE allocation (after floor/cap)
+  userUsd: number             // user's allocation in USD
+  poolSharePct: number        // userTokens / poolTokens × 100
 }
 
 export function estimateAllocation(
-  result: Pick<CheckerResult, 'tier' | 'totalScore' | 'maxScore'>,
+  result: Pick<
+    CheckerResult,
+    'totalScore' | 'maxScore' | 'minimumEligibility'
+  >,
   params: AllocationParams,
 ): AllocationEstimate {
   const poolTokens = params.totalSupply * params.airdropPct
   const tokenPriceUsd = params.fdvUsd / params.totalSupply
-  const baseAllocation = poolTokens / params.eligibleWallets
-  const tierMultiplier = params.multipliers[result.tier] ?? 0
+  const poolUsd = poolTokens * tokenPriceUsd
+  const whaleAnchorTokens = params.whaleAnchorUsd / tokenPriceUsd
+  const floorTokens = params.floorUsd / tokenPriceUsd
 
-  // Within a tier, modulate by how deep into the tier the user scored.
-  // Maps points → 0.7x..1.3x of the tier's base multiplier so two whales
-  // with different point totals don't get the exact same number.
-  const scorePct = result.totalScore / result.maxScore
-  const inTierBonus =
-    result.tier === 'ineligible' ? 1 : 0.7 + Math.min(1, scorePct) * 0.6
+  if (!result.minimumEligibility.meets) {
+    return {
+      eligible: false,
+      failureReasons: result.minimumEligibility.failureReasons,
+      poolTokens,
+      poolUsd,
+      tokenPriceUsd,
+      floorTokens,
+      whaleAnchorTokens,
+      scoreRatio: 0,
+      curveMultiplier: 0,
+      uncappedTokens: 0,
+      hitFloor: false,
+      hitCap: false,
+      userTokens: 0,
+      userUsd: 0,
+      poolSharePct: 0,
+    }
+  }
 
-  const userTokens = baseAllocation * tierMultiplier * inTierBonus
+  const scoreRatio = result.maxScore > 0 ? result.totalScore / result.maxScore : 0
+  const curveMultiplier = Math.pow(scoreRatio, params.curveExponent)
+  const uncappedTokens = whaleAnchorTokens * curveMultiplier
+
+  // Clamp between floor and cap (matches ARB/OP/ZK/ZRO design pattern).
+  const userTokens = Math.min(whaleAnchorTokens, Math.max(floorTokens, uncappedTokens))
+  const hitFloor = uncappedTokens < floorTokens
+  const hitCap = uncappedTokens > whaleAnchorTokens
+
+  const userUsd = userTokens * tokenPriceUsd
+  const poolSharePct = poolTokens > 0 ? (userTokens / poolTokens) * 100 : 0
+
   return {
+    eligible: true,
+    failureReasons: [],
     poolTokens,
+    poolUsd,
     tokenPriceUsd,
-    baseAllocation,
-    tierMultiplier,
+    floorTokens,
+    whaleAnchorTokens,
+    scoreRatio,
+    curveMultiplier,
+    uncappedTokens,
+    hitFloor,
+    hitCap,
     userTokens,
-    userUsd: userTokens * tokenPriceUsd,
-    poolUsd: poolTokens * tokenPriceUsd,
+    userUsd,
+    poolSharePct,
   }
 }
 

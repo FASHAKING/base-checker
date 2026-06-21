@@ -185,3 +185,13 @@ export function scoreTier(criterion: Criterion, value: number): { points: number
   }
   return earned
 }
+
+// Minimum eligibility rule — matches the pattern across ARB / OP / ZK / ZRO:
+// every major L2 airdrop required (activity) AND (capital or identity or longevity).
+// Never a single dimension. We mirror that here.
+export const ACTIVITY_CRITERIA_IDS = ['tx_count', 'months_active', 'unique_contracts'] as const
+export const COMMITMENT_CRITERIA_IDS = [
+  'eth_balance',
+  'base_verify_identity',
+  'wallet_age_days',
+] as const

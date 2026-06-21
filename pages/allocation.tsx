@@ -18,6 +18,13 @@ type CheckerResult = {
   bonusScore: number
   bonusMaxScore: number
   tier: 'ineligible' | 'low' | 'medium' | 'high' | 'whale'
+  minimumEligibility: {
+    meets: boolean
+    hasActivity: boolean
+    hasCommitment: boolean
+    hasCriticalSybil: boolean
+    failureReasons: string[]
+  }
   warnings: string[]
 }
 
@@ -68,9 +75,6 @@ export default function AllocationPage() {
     setParams((p) => ({ ...p, [key]: value }))
   }
 
-  const updateMultiplier = (tier: CheckerResult['tier'], value: number) => {
-    setParams((p) => ({ ...p, multipliers: { ...p.multipliers, [tier]: value } }))
-  }
 
   return (
     <Layout title="$BASE Airdrop Allocation Simulator">
@@ -187,11 +191,18 @@ export default function AllocationPage() {
             hint="Default $3B (between JUP $6.5B and ZK $5B). Bull case $6B. Sustained 6-mo: $1B."
           />
           <NumberRow
-            label="Assumed eligible wallets"
-            value={params.eligibleWallets}
-            onChange={(v) => updateParam('eligibleWallets', v)}
-            suffix="wallets"
-            hint="ARB 625k · OP 250k · ZK 700k · ZRO 1.28M · STRK 1.35M → median 700k"
+            label="Floor (USD min-eligible user gets)"
+            value={params.floorUsd}
+            onChange={(v) => updateParam('floorUsd', v)}
+            suffix="USD"
+            hint="Hard FLOOR. ARB $1.7k · OP $450 · ZK $100 · ZRO $225. Default $500 matches ARB's floor:cap ratio (~10%)."
+          />
+          <NumberRow
+            label="Whale anchor (USD max-score user gets)"
+            value={params.whaleAnchorUsd}
+            onChange={(v) => updateParam('whaleAnchorUsd', v)}
+            suffix="USD"
+            hint="Hard CAP. Median power-user payouts: ARB $14k, OP $50k (outlier), ZRO $45k. Default $5k = median."
           />
 
           <button
@@ -207,25 +218,22 @@ export default function AllocationPage() {
               padding: 0,
             }}
           >
-            {showAdvanced ? '▼' : '▶'} Advanced: tier multipliers
+            {showAdvanced ? '▼' : '▶'} Advanced: distribution curve
           </button>
 
           {showAdvanced && (
             <div style={{ marginTop: 12, padding: 12, background: '#fafafa', borderRadius: 8 }}>
-              <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 8 }}>
-                Each multiplier scales the base allocation (pool ÷ wallets) for that tier.
+              <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 8, lineHeight: 1.4 }}>
+                Shapes how allocation scales with score. 1.0 = linear · 1.5 = mild whale skew (default, matches ARB) · 2.0 = strong whale skew.
               </div>
-              {(['ineligible', 'low', 'medium', 'high', 'whale'] as const).map((tier) => (
-                <NumberRow
-                  key={tier}
-                  label={tier.charAt(0).toUpperCase() + tier.slice(1)}
-                  value={params.multipliers[tier]}
-                  onChange={(v) => updateMultiplier(tier, v)}
-                  suffix="×"
-                  hint=""
-                  small
-                />
-              ))}
+              <NumberRow
+                label="Curve exponent"
+                value={params.curveExponent}
+                onChange={(v) => updateParam('curveExponent', v)}
+                suffix="×"
+                hint={`At ${params.curveExponent}, a 50%-score user gets ${(Math.pow(0.5, params.curveExponent) * 100).toFixed(0)}% of whale tokens.`}
+                small
+              />
             </div>
           )}
 
@@ -249,6 +257,47 @@ export default function AllocationPage() {
         {/* Result */}
         {result && estimate && (
           <>
+            {/* Minimum eligibility gate */}
+            <Card
+              style={{
+                borderColor: result.minimumEligibility.meets ? '#bbf7d0' : '#fecaca',
+                background: result.minimumEligibility.meets ? '#f0fdf4' : '#fef2f2',
+              }}
+            >
+              <SectionTitle
+                style={{
+                  color: result.minimumEligibility.meets ? '#065f46' : '#991b1b',
+                  margin: 0,
+                }}
+              >
+                {result.minimumEligibility.meets ? '✓ Meets minimum eligibility' : '✗ Does not meet minimum eligibility'}
+              </SectionTitle>
+              <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+                <EligibilityBadge
+                  label="Activity"
+                  passed={result.minimumEligibility.hasActivity}
+                  hint="tx count, months active, or unique contracts"
+                />
+                <EligibilityBadge
+                  label="Commitment"
+                  passed={result.minimumEligibility.hasCommitment}
+                  hint="ETH balance, Base Verify, or wallet age"
+                />
+                <EligibilityBadge
+                  label="No critical sybil"
+                  passed={!result.minimumEligibility.hasCriticalSybil}
+                  hint="zero txs, duplicate identity"
+                />
+              </div>
+              {!result.minimumEligibility.meets && (
+                <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#991b1b' }}>
+                  {result.minimumEligibility.failureReasons.map((r, i) => (
+                    <div key={i}>• {r}</div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
             <Card style={{ borderColor: TIER_COLORS[result.tier] + '40', background: TIER_COLORS[result.tier] + '08' }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: TIER_COLORS[result.tier], letterSpacing: '0.05em', fontWeight: 700 }}>
@@ -266,6 +315,26 @@ export default function AllocationPage() {
                 <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4 }}>
                   at {formatUsd(estimate.tokenPriceUsd)} per $BASE
                 </div>
+                {estimate.eligible && (
+                  <>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 6 }}>
+                      = {estimate.poolSharePct.toFixed(5)}% of the total airdrop pool
+                    </div>
+                    {estimate.hitFloor && (
+                      <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#1e40af', fontWeight: 600 }}>
+                        ⬆️ Floored at {formatUsd(params.floorUsd)} — your raw curve value was below the floor
+                      </div>
+                    )}
+                    {estimate.hitCap && (
+                      <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#5b21b6', fontWeight: 600 }}>
+                        ⬇️ Capped at {formatUsd(params.whaleAnchorUsd)} — your raw curve value exceeded the cap
+                      </div>
+                    )}
+                    <div style={{ marginTop: 8, fontSize: '0.65rem', color: '#9ca3af' }}>
+                      Range: {formatUsd(params.floorUsd)} (floor) – {formatUsd(params.whaleAnchorUsd)} (cap)
+                    </div>
+                  </>
+                )}
               </div>
             </Card>
 
@@ -275,11 +344,15 @@ export default function AllocationPage() {
               <BreakdownRow label="Airdrop pool" value={`${formatCompactNumber(estimate.poolTokens)} $BASE (${(params.airdropPct * 100).toFixed(1)}%)`} />
               <BreakdownRow label="Pool USD value @ FDV" value={formatUsd(estimate.poolUsd)} />
               <BreakdownRow label="Token price (FDV ÷ supply)" value={formatUsd(estimate.tokenPriceUsd)} />
-              <BreakdownRow label="Eligible wallets (assumed)" value={formatCompactNumber(params.eligibleWallets)} />
-              <BreakdownRow label="Base allocation (pool ÷ wallets)" value={`${formatCompactNumber(estimate.baseAllocation)} $BASE`} />
-              <BreakdownRow label={`Tier multiplier (${result.tier})`} value={`${estimate.tierMultiplier}×`} />
-              <BreakdownRow label="In-tier score modulation" value={`${(0.7 + Math.min(1, result.totalScore / result.maxScore) * 0.6).toFixed(2)}×`} />
-              <BreakdownRow label="Your allocation" value={`${formatCompactNumber(estimate.userTokens)} $BASE`} bold />
+              <BreakdownRow label="Floor (min eligible)" value={`${formatCompactNumber(estimate.floorTokens)} $BASE (${formatUsd(params.floorUsd)})`} />
+              <BreakdownRow label="Cap (max eligible)" value={`${formatCompactNumber(estimate.whaleAnchorTokens)} $BASE (${formatUsd(params.whaleAnchorUsd)})`} />
+              <BreakdownRow label="Your score" value={`${result.totalScore} / ${result.maxScore} (${(estimate.scoreRatio * 100).toFixed(1)}%)`} />
+              <BreakdownRow label={`Raw curve value (^${params.curveExponent})`} value={`${formatCompactNumber(estimate.uncappedTokens)} $BASE`} />
+              <BreakdownRow
+                label="After floor & cap clamp"
+                value={estimate.eligible ? `${formatCompactNumber(estimate.userTokens)} $BASE` : '0 $BASE (below minimum)'}
+                bold
+              />
             </Card>
 
             {result.warnings.length > 0 && (
@@ -297,22 +370,37 @@ export default function AllocationPage() {
           <Card>
             <SectionTitle>What this does</SectionTitle>
             <p style={{ fontSize: '0.85rem', color: '#4b5563', lineHeight: 1.5, margin: 0 }}>
-              Runs <code>/api/check-wallet</code> for your address, gets your tier
-              (ineligible / low / medium / high / whale), then multiplies the base allocation by
-              the tier multiplier and modulates by where you scored within the tier (0.7–1.3×).
-              All parameters are tunable above.
+              Runs <code>/api/check-wallet</code> for your address, checks if you meet the minimum
+              eligibility bar (activity + commitment + no critical sybil), then scales your
+              allocation off a whale anchor by your score ratio raised to the curve exponent.
             </p>
+            <SectionTitle style={{ marginTop: 16 }}>Minimum eligibility (recommended)</SectionTitle>
+            <p style={{ fontSize: '0.8rem', color: '#4b5563', lineHeight: 1.5, margin: '0 0 8px' }}>
+              Mirrors what every major L2 drop required. You must pass <strong>all three</strong>:
+            </p>
+            <ul style={{ fontSize: '0.8rem', color: '#4b5563', lineHeight: 1.6, margin: 0, paddingLeft: 18 }}>
+              <li><strong>≥1 activity criterion</strong> — tx count, months active, or unique contracts (matches ARB ≥4 txs, OP repeat-user, ZK ≥10 txs)</li>
+              <li><strong>≥1 commitment criterion</strong> — ETH balance, Base Verify identity, or wallet age (matches ARB bridged-volume, ZK held ≥$50, ZRO cross-chain message)</li>
+              <li><strong>No critical sybil flags</strong> — zero activity or duplicate identity</li>
+            </ul>
             <SectionTitle style={{ marginTop: 16 }}>Defaults sourced from real L2 launches</SectionTitle>
             <ul style={{ fontSize: '0.8rem', color: '#4b5563', lineHeight: 1.6, margin: 0, paddingLeft: 18 }}>
               <li><strong>Supply 1B</strong> — your spec; matches ZRO exactly</li>
               <li><strong>Airdrop 10%</strong> — mean of ARB 11.6% / OP 5% / ZK 17.5% / ZRO 8.5%</li>
-              <li><strong>FDV $3B</strong> — between JUP ($6.5B) and ZK ($5B). Sustained 6-mo prices have averaged 40-60% of launch FDV, so $3B is closer to the realistic "what the market gives you" number than the launch-day euphoria peak</li>
-              <li><strong>700k eligible wallets</strong> — median of ARB 625k / OP 250k / ZK 700k / ZRO 1.28M / STRK 1.35M</li>
-              <li><strong>Tier curve 8× / 3× / 1× / 0.25×</strong> — modeled on ARB's tiered structure</li>
+              <li><strong>FDV $3B</strong> — between JUP ($6.5B) and ZK ($5B); realistic for current market</li>
+              <li><strong>Floor $500</strong> — min-eligible user payout. Matches ARB's floor:cap ratio (~10%). Real floors: ARB $1.7k, OP $450, ZK $100, ZRO $225</li>
+              <li><strong>Whale anchor (cap) $5k</strong> — max-score user payout. Median power-user payout in past drops (ARB $3-6k, OP $3-8k, ZRO $3-8k, ZK $2-5k)</li>
+              <li><strong>Curve exponent 1.5</strong> — mild whale skew; a 50%-score user gets ~35% of whale tokens (linear would give 50%, ARB's actual curve was steeper)</li>
             </ul>
-            <div style={{ marginTop: 12, padding: 10, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, fontSize: '0.75rem', color: '#92400e', lineHeight: 1.4 }}>
-              <strong>Honest note:</strong> every major L2 token lost 45–90% within months of launch
-              (ARB -70%, ZK -70%+, STRK -90%). Use the &quot;Bear / sustained&quot; scenario above to model what you'd actually be holding 6 months in, not what it briefly traded at on day 1.
+            <div style={{ marginTop: 12, padding: 10, background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: 8, fontSize: '0.75rem', color: '#1e40af', lineHeight: 1.4 }}>
+              <strong>Why floor + cap?</strong> Every major L2 drop (ARB, OP, ZK, ZRO, STRK) used both.
+              The cap kills sybil farming incentives (can't game your way to infinity) and prevents
+              whales from draining the pool. The floor makes &quot;passing eligibility&quot; mean something
+              real — bottom-tier qualifying users get a meaningful allocation, not 1 token.
+            </div>
+            <div style={{ marginTop: 8, padding: 10, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, fontSize: '0.75rem', color: '#92400e', lineHeight: 1.4 }}>
+              <strong>Honest note:</strong> every major L2 token lost 45-90% within months of launch
+              (ARB -70%, ZK -70%+, STRK -90%). Use the &quot;Bear / sustained&quot; scenario to model what you'd actually be holding 6 months in.
             </div>
           </Card>
         )}
@@ -416,6 +504,26 @@ function NumberRow({
       {hint && (
         <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 2 }}>{hint}</div>
       )}
+    </div>
+  )
+}
+
+function EligibilityBadge({ label, passed, hint }: { label: string; passed: boolean; hint: string }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 140,
+        padding: '0.5rem 0.75rem',
+        background: passed ? '#dcfce7' : '#fee2e2',
+        border: `1px solid ${passed ? '#86efac' : '#fca5a5'}`,
+        borderRadius: 8,
+      }}
+    >
+      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: passed ? '#065f46' : '#991b1b' }}>
+        {passed ? '✓' : '✗'} {label}
+      </div>
+      <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: 2 }}>{hint}</div>
     </div>
   )
 }

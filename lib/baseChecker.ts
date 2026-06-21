@@ -8,6 +8,8 @@ import {
   SYBIL_FLAGS,
   MAX_SCORE,
   scoreTier,
+  ACTIVITY_CRITERIA_IDS,
+  COMMITMENT_CRITERIA_IDS,
 } from './baseCheckerCriteria'
 import { MINI_APP_REGISTRY } from './miniAppRegistry'
 
@@ -75,6 +77,14 @@ export type CheckerSybilHit = {
   penalty: number
 }
 
+export type MinimumEligibility = {
+  meets: boolean
+  hasActivity: boolean
+  hasCommitment: boolean
+  hasCriticalSybil: boolean
+  failureReasons: string[]
+}
+
 export type CheckerResult = {
   address: string
   totalScore: number
@@ -85,6 +95,7 @@ export type CheckerResult = {
   metrics: CheckerMetric[]
   bonusMetrics: CheckerMetric[]
   sybilFlags: CheckerSybilHit[]
+  minimumEligibility: MinimumEligibility
   identity: {
     hasBaseVerify: boolean
     provider: string | null
@@ -377,16 +388,50 @@ export async function checkWallet(
   const penalty = sybilFlags.reduce((sum, f) => sum + f.penalty, 0)
   const totalScore = Math.max(0, earned + bonusEarned - penalty)
 
+  // 8. Minimum eligibility — mirrors ARB/OP/ZK/ZRO pattern:
+  //    require BOTH activity AND commitment, and no critical sybil flags.
+  const hasActivity = metrics.some(
+    (m) => (ACTIVITY_CRITERIA_IDS as readonly string[]).includes(m.id) && m.pointsEarned >= 1,
+  )
+  const hasCommitment = metrics.some(
+    (m) => (COMMITMENT_CRITERIA_IDS as readonly string[]).includes(m.id) && m.pointsEarned >= 1,
+  )
+  const hasCriticalSybil = sybilFlags.some((f) => f.severity === 'critical')
+  const failureReasons: string[] = []
+  if (!hasActivity)
+    failureReasons.push(
+      'No activity dimension passed — need ≥1 tier in tx count, months active, or unique contracts.',
+    )
+  if (!hasCommitment)
+    failureReasons.push(
+      'No commitment dimension passed — need ≥1 tier in ETH balance, Base Verify identity, or wallet age.',
+    )
+  if (hasCriticalSybil) failureReasons.push('Critical sybil flag triggered.')
+
+  const minimumEligibility: MinimumEligibility = {
+    meets: hasActivity && hasCommitment && !hasCriticalSybil,
+    hasActivity,
+    hasCommitment,
+    hasCriticalSybil,
+    failureReasons,
+  }
+
+  // Tier is gated by the minimum: ineligible if floor not met, regardless of score.
+  const computedTier = minimumEligibility.meets
+    ? tierFromScore(totalScore, MAX_SCORE + bonusMax)
+    : 'ineligible'
+
   return {
     address,
     totalScore,
     maxScore: MAX_SCORE + bonusMax,
     bonusScore: bonusEarned,
     bonusMaxScore: bonusMax,
-    tier: tierFromScore(totalScore, MAX_SCORE + bonusMax),
+    tier: computedTier,
     metrics,
     bonusMetrics,
     sybilFlags,
+    minimumEligibility,
     identity: { hasBaseVerify, provider: identityProvider, tokenTaken },
     baseApp: {
       provided: !!baseAppAddress,

@@ -385,6 +385,18 @@ These are **opt-in** and never penalize a user for not having them.
 
 Pipes the `/checker` eligibility score through a tunable airdrop economic model to estimate a wallet's $BASE allocation in tokens and USD.
 
+### Minimum eligibility (hard gate)
+
+Mirrors what every major L2 drop required. Must pass **all three**:
+
+1. **≥1 activity criterion** — tx count, months active, or unique contracts
+   (matches ARB ≥4 txs, OP repeat-user, ZK ≥10 txs)
+2. **≥1 commitment criterion** — ETH balance, Base Verify identity, or wallet age
+   (matches ARB bridged-volume, ZK held ≥$50, ZRO cross-chain message)
+3. **No critical sybil flags** — zero activity or duplicate identity
+
+Single-criterion wallets ("I hold 1 ETH but never used Base") fail. So do one-day-burst farmers ("100 txs in a day, then nothing").
+
 ### Default parameters (all user-adjustable on the page)
 
 Calibrated against actual L2 launches: ARB ($1.40 launch / $14B FDV → $0.40 now), OP ($1.80 / $8B → $1.50), ZK ($0.22 / $5B → $0.06), ZRO ($4.50 / $4.5B → $2.50), STRK ($2.00 / $20B → $0.20). L2 tokens have historically lost 45–90% within months of launch.
@@ -393,9 +405,17 @@ Calibrated against actual L2 launches: ARB ($1.40 launch / $14B FDV → $0.40 no
 |---|---|---|
 | Total supply | 1,000,000,000 ($BASE) | Spec default; matches ZRO exactly |
 | Airdrop % | 10% | Mean of ARB 11.62% / OP 5% / ZK 17.5% / ZRO 8.5% |
-| FDV at launch | **$3,000,000,000** | Between JUP ($6.5B) and ZK ($5B). Realistic for current market — not the 2023–24 launch peak |
-| Assumed eligible wallets | **700,000** | Median of ARB 625k / OP 250k / ZK 700k / ZRO 1.28M / STRK 1.35M |
-| Tier multipliers | Whale 8× · High 3× · Medium 1× · Low 0.25× · Ineligible 0× | Models the curve — top users get ~32× a low-tier wallet, matching ARB's tiered structure |
+| FDV at launch | **$3,000,000,000** | Between JUP ($6.5B) and ZK ($5B). Realistic for current market |
+| Floor | **$500** | Hard floor for min-eligible users. Matches ARB's floor:cap ratio (~10%). Real floors: ARB $1.7k, OP $450, ZK $100, ZRO $225 |
+| Whale anchor (cap) | **$5,000** | Hard cap for max-score users. Median power-user payout across past drops (ARB $3-6k, OP $3-8k, ZRO $3-8k, ZK $2-5k) |
+| Curve exponent | **1.5** | Mild whale skew; 50%-score user gets ~35% of whale tokens. Linear (1.0) would give 50%; ARB's actual curve was closer to 1.8 |
+
+### Why floor + cap (not unlimited scaling)
+
+Every successful L2 drop bounded allocations on both ends:
+
+- **Hard cap** kills sybil farming incentives — you can't game your way to infinity, so the optimal strategy isn't "max one wallet's score." Also prevents whales from draining the pool and crashing the token on day-1 sell pressure.
+- **Hard floor** makes passing eligibility mean something — bottom-tier qualifying users get a real allocation, not a token of dust. Critical for distribution credibility.
 
 ### Scenarios (one-click presets on the page)
 
@@ -408,29 +428,40 @@ Calibrated against actual L2 launches: ARB ($1.40 launch / $14B FDV → $0.40 no
 ### Formula
 
 ```
-pool        = totalSupply × airdropPct
-tokenPrice  = FDV / totalSupply
-baseAlloc   = pool / eligibleWallets
-inTierBonus = 0.7 + min(1, score/maxScore) × 0.6     # 0.7×..1.3×
-userTokens  = baseAlloc × tierMultiplier × inTierBonus
-userUsd     = userTokens × tokenPrice
+# 1. Gate: minimum eligibility (activity + commitment + no critical sybil)
+if !meetsMinimum: return 0
+
+# 2. Economics
+tokenPrice      = FDV / totalSupply
+floorTokens     = floorUsd / tokenPrice
+whaleTokens     = whaleAnchorUsd / tokenPrice         # hard cap
+
+# 3. Score-based scaling with whale-favoring curve
+scoreRatio      = userScore / maxScore
+curveMultiplier = scoreRatio ^ curveExponent          # 1.5 default
+rawTokens       = whaleTokens × curveMultiplier
+
+# 4. Clamp between floor and cap (matches ARB/OP/ZK/ZRO design)
+userTokens      = min(whaleTokens, max(floorTokens, rawTokens))
+userUsd         = userTokens × tokenPrice
 ```
 
-The in-tier bonus (0.7×–1.3×) prevents two whales with very different scores from getting identical allocations.
+The pool size and "% of pool" become **informational only** — we no longer guess how many wallets are eligible, because that would require indexing every wallet on Base.
 
 ### Default math walk-through
 
-With **Base case** defaults: pool = 100M $BASE, token price = **$3**, base allocation = ~143 $BASE.
+With **Base case** defaults: token price = **$3**, floor = $500 (≈167 $BASE), cap = $5,000 (≈1,667 $BASE), curve exponent 1.5.
 
-| Tier | Multiplier | Range (with in-tier bonus) | USD @ $3 (base) | USD @ $1 (bear) | USD @ $6 (bull) |
-|---|---|---|---|---|---|
-| Ineligible | 0× | 0 $BASE | $0 | $0 | $0 |
-| Low | 0.25× | 25 – 46 $BASE | $75 – $138 | $25 – $46 | $150 – $276 |
-| Medium | 1× | 100 – 186 $BASE | $300 – $558 | $100 – $186 | $600 – $1,116 |
-| High | 3× | 300 – 558 $BASE | $900 – $1,674 | $300 – $558 | $1,800 – $3,348 |
-| Whale | 8× | 800 – 1,486 $BASE | $2,400 – $4,458 | $800 – $1,486 | $4,800 – $8,916 |
+| Score % | Raw curve value | After floor/cap clamp | USD @ $3 |
+|---|---|---|---|
+| 0% (fails min eligibility) | 0 | **0 $BASE** | $0 |
+| ~21% (kink point) | ≈167 $BASE | **floored at 167 $BASE** | $500 |
+| 25% (low) | ≈208 $BASE | **208 $BASE** | $625 |
+| 50% (medium) | ≈589 $BASE | **589 $BASE** | $1,768 |
+| 75% (high) | ≈1,083 $BASE | **1,083 $BASE** | $3,247 |
+| 100% (whale, max) | 1,667 $BASE | **capped at 1,667 $BASE** | $5,000 |
 
-These figures align with what actual users received in comparable drops (ARB whale tier was ~$5–10k, OP power users $3–8k, ZRO whales $3–8k).
+Anyone below ~21% of max gets the floor ($500). Above that, they scale up the curve. At 100% they hit the cap ($5,000). These figures align with what actual users received in comparable drops (ARB $1.7k–$14k, OP $450–$8k, ZRO $225–$45k).
 
 ---
 

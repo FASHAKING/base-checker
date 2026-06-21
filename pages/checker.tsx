@@ -34,6 +34,13 @@ type Result = {
   metrics: Metric[]
   bonusMetrics: Metric[]
   sybilFlags: SybilHit[]
+  minimumEligibility: {
+    meets: boolean
+    hasActivity: boolean
+    hasCommitment: boolean
+    hasCriticalSybil: boolean
+    failureReasons: string[]
+  }
   identity: { hasBaseVerify: boolean; provider: string | null; tokenTaken: boolean }
   baseApp: { provided: boolean; address: string | null; isSmartContract: boolean; txCount: number }
   dataSources: { rpc: boolean; basescan: boolean }
