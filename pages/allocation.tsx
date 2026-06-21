@@ -11,7 +11,7 @@ import {
   formatUsd,
 } from '../lib/allocationModel'
 
-type BonusMetric = {
+type Metric = {
   id: string
   name: string
   category: string
@@ -29,7 +29,8 @@ type CheckerResult = {
   maxScore: number
   bonusScore: number
   bonusMaxScore: number
-  bonusMetrics: BonusMetric[]
+  metrics: Metric[]
+  bonusMetrics: Metric[]
   tier: 'ineligible' | 'low' | 'medium' | 'high' | 'whale'
   minimumEligibility: {
     meets: boolean
@@ -157,6 +158,33 @@ export default function AllocationPage() {
         {error && (
           <div style={errorBox}>{error}</div>
         )}
+
+        {/* Live token economics summary — always visible */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #eff6ff 0%, #f3e8ff 100%)',
+            border: '1px solid #c7d2fe',
+            borderRadius: 16,
+            padding: '1rem 1.25rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            justifyContent: 'space-around',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <PriceStat label="FDV" value={formatUsd(params.fdvUsd)} />
+          <PriceStat label="Supply" value={`${formatCompactNumber(params.totalSupply)} $BASE`} />
+          <PriceStat
+            label="Projected $BASE price"
+            value={formatUsd(params.fdvUsd / params.totalSupply)}
+            highlight
+          />
+          <PriceStat
+            label="Airdrop pool"
+            value={`${formatCompactNumber(params.totalSupply * params.airdropPct)} $BASE`}
+          />
+        </div>
 
         {/* Economic parameters */}
         <Card>
@@ -413,6 +441,31 @@ export default function AllocationPage() {
               />
             </Card>
 
+            {/* Achievements — what the wallet actually checked */}
+            <Card>
+              <SectionTitle>
+                What you checked
+                <span style={{ marginLeft: 8, fontSize: '0.75rem', padding: '2px 8px', borderRadius: 6, background: '#dbeafe', color: '#1e40af', fontWeight: 600 }}>
+                  {result.totalScore} / {result.maxScore} pts earned
+                </span>
+              </SectionTitle>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0 0 10px' }}>
+                ✓ green = max tier · ✓ blue = partial credit · – grey = not met
+              </p>
+              <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                Base criteria
+              </div>
+              {result.metrics.map((m) => (
+                <AchievementRow key={m.id} metric={m} />
+              ))}
+              <div style={{ fontSize: '0.7rem', color: '#9ca3af', margin: '12px 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                Bonus criteria (opt-in)
+              </div>
+              {result.bonusMetrics.map((m) => (
+                <AchievementRow key={m.id} metric={m} />
+              ))}
+            </Card>
+
             {result.warnings.length > 0 && (
               <Card style={{ background: '#fffbeb', borderColor: '#fcd34d' }}>
                 <SectionTitle>Notes from the eligibility check</SectionTitle>
@@ -563,6 +616,82 @@ function NumberRow({
       {hint && (
         <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 2 }}>{hint}</div>
       )}
+    </div>
+  )
+}
+
+function PriceStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div style={{ textAlign: 'center', minWidth: 100 }}>
+      <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: highlight ? '1.4rem' : '1.05rem',
+          fontWeight: highlight ? 800 : 700,
+          color: highlight ? '#0052FF' : '#1a1a1a',
+          fontFamily: 'monospace',
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function AchievementRow({ metric }: { metric: Metric }) {
+  const passed = metric.pointsEarned > 0
+  const isMax = metric.pointsEarned === metric.maxPoints
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '0.5rem 0.75rem',
+        background: passed ? (isMax ? '#dcfce7' : '#eff6ff') : '#f9fafb',
+        border: `1px solid ${passed ? (isMax ? '#86efac' : '#bfdbfe') : '#e5e7eb'}`,
+        borderRadius: 8,
+        marginBottom: 6,
+      }}
+    >
+      <div
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: '50%',
+          background: passed ? (isMax ? '#16a34a' : '#3b82f6') : '#d1d5db',
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '0.7rem',
+          fontWeight: 700,
+          flexShrink: 0,
+        }}
+      >
+        {passed ? '✓' : '–'}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1a1a1a' }}>
+          {metric.name}
+        </div>
+        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+          {passed ? metric.tierLabel : 'Not met'} · <span style={{ fontFamily: 'monospace' }}>{metric.displayValue}</span>
+        </div>
+      </div>
+      <div
+        style={{
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          color: passed ? (isMax ? '#15803d' : '#1e40af') : '#9ca3af',
+          fontFamily: 'monospace',
+        }}
+      >
+        {metric.pointsEarned}/{metric.maxPoints}
+      </div>
     </div>
   )
 }
