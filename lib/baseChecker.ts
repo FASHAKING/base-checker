@@ -29,8 +29,8 @@ type BasescanTx = {
 }
 
 async function basescanTxList(address: string): Promise<BasescanTx[] | null> {
+  const isEtherscanV2 = config.basescanApiUrl.includes('etherscan.io/v2')
   const params = new URLSearchParams({
-    chainid: String(config.basescanChainId),
     module: 'account',
     action: 'txlist',
     address,
@@ -40,6 +40,7 @@ async function basescanTxList(address: string): Promise<BasescanTx[] | null> {
     page: '1',
     offset: '10000',
   })
+  if (isEtherscanV2) params.set('chainid', String(config.basescanChainId))
   if (config.basescanApiKey) params.set('apikey', config.basescanApiKey)
 
   try {

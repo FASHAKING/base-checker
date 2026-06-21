@@ -23,7 +23,7 @@ export const config = {
 
   // Base mainnet — used by /checker for L2-style eligibility scoring
   baseMainnetRpcUrl: process.env.BASE_MAINNET_RPC_URL || 'https://mainnet.base.org',
-  basescanApiUrl: process.env.BASESCAN_API_URL || 'https://api.etherscan.io/v2/api',
+  basescanApiUrl: process.env.BASESCAN_API_URL || 'https://base.blockscout.com/api',
   basescanApiKey: process.env.BASESCAN_API_KEY || '',
   basescanChainId: parseInt(process.env.BASESCAN_CHAIN_ID || '8453', 10),
 
