@@ -1,11 +1,11 @@
 import Head from 'next/head'
 import { useMemo, useState } from 'react'
-import { Layout } from '../components/Layout'
-import { CRITERIA, BONUS_CRITERIA, SYBIL_FLAGS } from '../lib/baseCheckerCriteria'
 import {
-  AllocationParams,
+  CRITERIA,
+  BONUS_CRITERIA,
+} from '../lib/baseCheckerCriteria'
+import {
   DEFAULT_PARAMS,
-  SCENARIOS,
   estimateAllocation,
   formatCompactNumber,
   formatUsd,
@@ -33,6 +33,7 @@ type SybilHit = {
 
 type Result = {
   address: string
+  resolvedFrom?: string | null
   totalScore: number
   maxScore: number
   bonusScore: number
@@ -48,48 +49,76 @@ type Result = {
     hasCriticalSybil: boolean
     failureReasons: string[]
   }
-  identity: { hasBaseVerify: boolean; provider: string | null; tokenTaken: boolean }
-  baseApp: { provided: boolean; address: string | null; isSmartContract: boolean; txCount: number }
-  dataSources: { rpc: boolean; basescan: boolean }
+  basename: {
+    name: string | null
+    hasBasename: boolean
+    isShortBasename: boolean
+  }
   warnings: string[]
 }
 
-const TIER_COLORS: Record<Result['tier'], { bg: string; fg: string; label: string }> = {
-  ineligible: { bg: '#fef2f2', fg: '#991b1b', label: 'Ineligible' },
-  low: { bg: '#fffbeb', fg: '#92400e', label: 'Low — minimal activity' },
-  medium: { bg: '#eff6ff', fg: '#1e40af', label: 'Medium — active user' },
-  high: { bg: '#ecfdf5', fg: '#065f46', label: 'High — power user' },
-  whale: { bg: '#f5f3ff', fg: '#5b21b6', label: 'Whale — top-tier eligibility' },
+// Dark theme tokens
+const C = {
+  bg: '#0a0a0c',
+  panel: '#111114',
+  panelAlt: '#16161a',
+  border: '#26262d',
+  borderSoft: '#1c1c22',
+  text: '#f5f5f5',
+  textMute: '#9b9ba3',
+  textDim: '#6c6c75',
+  accent: '#0052FF',         // BASE blue
+  accentSoft: '#1d4ed8',
+  gold: '#d97706',           // gold/amber accent like reference
+  goldSoft: '#92400e',
+  green: '#22c55e',
+  red: '#ef4444',
+  purple: '#a855f7',
 }
 
 export default function CheckerPage() {
   const [input, setInput] = useState('')
   const [baseAppInput, setBaseAppInput] = useState('')
   const [fidInput, setFidInput] = useState('')
+  const [showBaseAppField, setShowBaseAppField] = useState(false)
+  const [showFidField, setShowFidField] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+  const toggleSection = (id: string) => setOpenSections((o) => ({ ...o, [id]: !o[id] }))
 
-  // Allocation model state (formerly /allocation page)
-  const [allocParams, setAllocParams] = useState<AllocationParams>(DEFAULT_PARAMS)
-  const [showAllocSettings, setShowAllocSettings] = useState(false)
-  const updateAlloc = <K extends keyof AllocationParams>(key: K, value: AllocationParams[K]) =>
-    setAllocParams((p) => ({ ...p, [key]: value }))
-  const projectedPrice = allocParams.fdvUsd / allocParams.totalSupply
-  const poolTokens = allocParams.totalSupply * allocParams.airdropPct
+  // Tunable economics (from reference design)
+  const [supplyMb, setSupplyMb] = useState<{ value: number; unit: 'M' | 'B' }>({ value: 10, unit: 'B' })
+  const [fdvMb, setFdvMb] = useState<{ value: number; unit: 'M' | 'B' }>({ value: 3, unit: 'B' })
+  const [airdropPct, setAirdropPct] = useState(25)
+
+  const totalSupply = supplyMb.value * (supplyMb.unit === 'B' ? 1_000_000_000 : 1_000_000)
+  const fdvUsd = fdvMb.value * (fdvMb.unit === 'B' ? 1_000_000_000 : 1_000_000)
+  const allocParams = {
+    ...DEFAULT_PARAMS,
+    totalSupply,
+    fdvUsd,
+    airdropPct: airdropPct / 100,
+  }
+  const projectedPrice = fdvUsd / totalSupply
+  const poolTokens = totalSupply * (airdropPct / 100)
+
   const estimate = useMemo(
     () => (result ? estimateAllocation(result, allocParams) : null),
     [result, allocParams],
   )
 
-  const runCheck = async (addr: string, baseApp: string, fid: string) => {
+  const runCheck = async () => {
+    const target = input.trim()
+    if (!target) return
     setError('')
     setResult(null)
     setIsLoading(true)
     try {
-      const params = new URLSearchParams({ address: addr })
-      if (baseApp) params.set('baseApp', baseApp)
-      if (fid) params.set('fid', fid)
+      const params = new URLSearchParams({ address: target })
+      if (baseAppInput.trim()) params.set('baseApp', baseAppInput.trim())
+      if (fidInput.trim()) params.set('fid', fidInput.trim())
       const res = await fetch(`/api/check-wallet?${params.toString()}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Check failed')
@@ -101,753 +130,819 @@ export default function CheckerPage() {
     }
   }
 
-  const targetAddress = input.trim()
-
   return (
-    <Layout title="Base Airdrop Checker">
+    <>
       <Head>
-        <title>Base Checker — Are You Airdrop-Eligible?</title>
+        <title>$BASE Airdrop Calculator</title>
         <meta
           name="description"
-          content="Check any Base mainnet wallet against a unified eligibility rubric drawn from Arbitrum, Optimism, zkSync, LayerZero, and Base Verify."
+          content="Check any Base mainnet wallet or basename against a unified airdrop eligibility rubric."
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&display=swap"
+          rel="stylesheet"
         />
       </Head>
 
-      <div style={{ maxWidth: 760, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <h2
-            style={{
-              fontSize: 'clamp(1.75rem, 6vw, 2.5rem)',
-              fontWeight: 700,
-              color: '#1a1a1a',
-              margin: '0 0 0.5rem',
-              lineHeight: 1.1,
-            }}
-          >
-            Base Airdrop Checker
-          </h2>
-          <p style={{ fontSize: '0.95rem', color: '#666', margin: 0, lineHeight: 1.4 }}>
-            Score any Base mainnet wallet, see your projected $BASE allocation at current FDV.
-          </p>
-        </div>
-
-        {/* Live token economics — always visible */}
+      <div
+        style={{
+          minHeight: '100vh',
+          background: C.bg,
+          color: C.text,
+          fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
+        }}
+      >
+        {/* Top search bar */}
         <div
           style={{
-            background: 'linear-gradient(135deg, #eff6ff 0%, #f3e8ff 100%)',
-            border: '1px solid #c7d2fe',
-            borderRadius: 16,
-            padding: '0.85rem 1rem',
-            marginBottom: '1rem',
-            display: 'flex',
-            justifyContent: 'space-around',
-            gap: 12,
-            flexWrap: 'wrap',
+            maxWidth: 1100,
+            margin: '0 auto',
+            padding: '1.5rem 1.5rem 0',
           }}
         >
-          <PriceStat label="FDV" value={formatUsd(allocParams.fdvUsd)} />
-          <PriceStat label="Supply" value={`${formatCompactNumber(allocParams.totalSupply)} $BASE`} />
-          <PriceStat label="$BASE price" value={formatUsd(projectedPrice)} highlight />
-          <PriceStat label="Airdrop pool" value={`${formatCompactNumber(poolTokens)} $BASE`} />
-        </div>
-
-        <div
-          style={{
-            background: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: 16,
-            padding: '1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            marginBottom: '1.5rem',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
-          }}
-        >
-          <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>
-              Wallet address (required)
-            </label>
-            <input
-              type="text"
-              placeholder="0x…"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.65rem 0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: 10,
-                fontSize: '0.9rem',
-                fontFamily: 'monospace',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>
-              Base App / Smart Wallet address <span style={{ color: '#9ca3af', fontWeight: 400 }}>— optional, for bonus points</span>
-            </label>
-            <input
-              type="text"
-              placeholder="0x… (Coinbase Smart Wallet embedded in Base App)"
-              value={baseAppInput}
-              onChange={(e) => setBaseAppInput(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.65rem 0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: 10,
-                fontSize: '0.9rem',
-                fontFamily: 'monospace',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-            <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 4 }}>
-              We detect if it's a smart contract wallet and credit you for activity + linked mini apps.
-            </div>
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block', marginTop: 12 }}>
-              Farcaster FID <span style={{ color: '#9ca3af', fontWeight: 400 }}>— optional, for identity bonus</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. 3621 (your numeric Farcaster ID)"
-              value={fidInput}
-              onChange={(e) => setFidInput(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.65rem 0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: 10,
-                fontSize: '0.9rem',
-                fontFamily: 'monospace',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-            <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 4 }}>
-              We verify the wallet is one of your linked addresses via Neynar — random FIDs won't work.
-            </div>
-          </div>
-
-          <button
-            onClick={() => runCheck(targetAddress, baseAppInput.trim(), fidInput.trim())}
-            disabled={isLoading || !targetAddress}
-            style={{
-              padding: '0.75rem 1.25rem',
-              background: isLoading || !targetAddress ? '#f3f4f6' : '#0052FF',
-              color: isLoading || !targetAddress ? '#9ca3af' : 'white',
-              border: 'none',
-              borderRadius: 10,
-              fontWeight: 600,
-              cursor: isLoading || !targetAddress ? 'not-allowed' : 'pointer',
-              fontSize: '0.95rem',
-            }}
-          >
-            {isLoading ? 'Checking…' : 'Check eligibility'}
-          </button>
-        </div>
-
-        {error && (
           <div
             style={{
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#991b1b',
-              padding: '0.75rem 1rem',
-              borderRadius: 12,
-              fontSize: '0.9rem',
-              marginBottom: '1rem',
+              display: 'flex',
+              gap: 8,
+              alignItems: 'stretch',
+              background: C.panel,
+              border: `1px solid ${C.border}`,
+              borderRadius: 999,
+              padding: 4,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
             }}
           >
-            {error}
-          </div>
-        )}
-
-        {result && (
-          <>
-            {/* Minimum eligibility gate */}
-            <div
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && runCheck()}
+              placeholder="0x... or yourname.base.eth"
               style={{
-                background: result.minimumEligibility.meets ? '#f0fdf4' : '#fef2f2',
-                border: `1px solid ${result.minimumEligibility.meets ? '#bbf7d0' : '#fecaca'}`,
-                borderRadius: 16,
-                padding: '1rem 1.25rem',
-                marginBottom: '1rem',
+                flex: 1,
+                padding: '0.75rem 1.25rem',
+                border: 'none',
+                background: 'transparent',
+                color: C.text,
+                fontSize: '0.95rem',
+                fontFamily: 'monospace',
+                outline: 'none',
+                minWidth: 0,
+              }}
+            />
+            {/* Compact + toggles */}
+            <PlusToggle
+              active={showBaseAppField || baseAppInput.length > 0}
+              hasValue={baseAppInput.length > 0}
+              onClick={() => setShowBaseAppField((s) => !s)}
+              label="Base App"
+            />
+            <PlusToggle
+              active={showFidField || fidInput.length > 0}
+              hasValue={fidInput.length > 0}
+              onClick={() => setShowFidField((s) => !s)}
+              label="Farcaster"
+            />
+            <button
+              onClick={runCheck}
+              disabled={isLoading || !input.trim()}
+              style={{
+                padding: '0.65rem 1.5rem',
+                background: isLoading || !input.trim() ? '#1a1a22' : C.accent,
+                color: isLoading || !input.trim() ? C.textDim : 'white',
+                border: 'none',
+                borderRadius: 999,
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                letterSpacing: '0.05em',
+                cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
               }}
             >
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: result.minimumEligibility.meets ? '#065f46' : '#991b1b', marginBottom: 8 }}>
-                {result.minimumEligibility.meets
-                  ? '✓ Meets minimum airdrop eligibility'
-                  : '✗ Does not meet minimum airdrop eligibility'}
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                <MinBadge
-                  label="Activity"
-                  passed={result.minimumEligibility.hasActivity}
-                  hint="tx count, months active, or contracts"
-                />
-                <MinBadge
-                  label="Commitment"
-                  passed={result.minimumEligibility.hasCommitment}
-                  hint="ETH, Base Verify, or wallet age"
-                />
-                <MinBadge
-                  label="No critical sybil"
-                  passed={!result.minimumEligibility.hasCriticalSybil}
-                  hint="not zero-tx; identity not reused"
-                />
-              </div>
-              {!result.minimumEligibility.meets && (
-                <div style={{ marginTop: 8, fontSize: '0.8rem', color: '#991b1b' }}>
-                  {result.minimumEligibility.failureReasons.map((r, i) => (
-                    <div key={i}>• {r}</div>
-                  ))}
-                </div>
-              )}
-              <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#6b7280', lineHeight: 1.4 }}>
-                Mirrors the universal pattern across ARB, OP, ZK, ZRO — every major L2 drop required activity AND commitment, not just one.
-              </div>
-            </div>
+              {isLoading ? 'CHECKING…' : 'CHECK ELIGIBILITY'}
+            </button>
+          </div>
 
-            {/* Score banner */}
+          {/* Conditional secondary input lines */}
+          {(showBaseAppField || baseAppInput) && (
+            <CompactInput
+              label="Base App / Smart Wallet"
+              value={baseAppInput}
+              onChange={setBaseAppInput}
+              placeholder="0x… (Coinbase Smart Wallet)"
+            />
+          )}
+          {(showFidField || fidInput) && (
+            <CompactInput
+              label="Farcaster FID"
+              value={fidInput}
+              onChange={setFidInput}
+              placeholder="e.g. 3621"
+            />
+          )}
+
+          {error && (
             <div
               style={{
-                background: TIER_COLORS[result.tier].bg,
-                border: `1px solid ${TIER_COLORS[result.tier].fg}33`,
+                marginTop: 12,
+                padding: '0.75rem 1rem',
+                background: '#2a0f12',
+                border: `1px solid ${C.red}55`,
+                borderRadius: 12,
+                color: '#fca5a5',
+                fontSize: '0.85rem',
+              }}
+            >
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Body — two column */}
+        <div
+          style={{
+            maxWidth: 1100,
+            margin: '0 auto',
+            padding: '2rem 1.5rem 3rem',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(260px, 1fr) 1.4fr',
+            gap: '3rem',
+          }}
+          className="checker-grid"
+        >
+          {/* LEFT: title, description, economics */}
+          <div>
+            <h1
+              style={{
+                fontFamily: '"Lora", Georgia, serif',
+                fontWeight: 400,
+                fontSize: 'clamp(2.5rem, 5vw, 3.4rem)',
+                lineHeight: 1.05,
+                margin: '0 0 1rem',
+                color: C.text,
+              }}
+            >
+              <span style={{ color: C.gold }}>$BASE</span>
+              <br />
+              Airdrop
+              <br />
+              Calculator
+            </h1>
+            <p
+              style={{
+                fontSize: '0.95rem',
+                color: C.textMute,
+                lineHeight: 1.55,
+                margin: '0 0 2rem',
+                maxWidth: 340,
+              }}
+            >
+              Enter any wallet address or basename to estimate a hypothetical $BASE airdrop — scored against patterns from the Arbitrum, Optimism, zkSync, and LayerZero drops, applied to your Base mainnet activity.
+            </p>
+
+            {/* Economics card */}
+            <div
+              style={{
+                background: C.panel,
+                border: `1px solid ${C.border}`,
                 borderRadius: 16,
                 padding: '1.25rem',
-                marginBottom: '1rem',
-                textAlign: 'center',
               }}
             >
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: TIER_COLORS[result.tier].fg, fontWeight: 700, marginBottom: 4 }}>
-                {TIER_COLORS[result.tier].label}
+              <EconRow
+                label="FULLY-DILUTED VALUATION"
+                value={fdvMb.value}
+                onChange={(v) => setFdvMb({ ...fdvMb, value: v })}
+                unit={fdvMb.unit}
+                onUnitChange={(u) => setFdvMb({ ...fdvMb, unit: u })}
+                prefix="$"
+              />
+              <EconRow
+                label="TOTAL TOKEN SUPPLY"
+                value={supplyMb.value}
+                onChange={(v) => setSupplyMb({ ...supplyMb, value: v })}
+                unit={supplyMb.unit}
+                onUnitChange={(u) => setSupplyMb({ ...supplyMb, unit: u })}
+              />
+
+              <div style={{ marginTop: 14 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    fontSize: '0.65rem',
+                    color: C.textMute,
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    marginBottom: 8,
+                  }}
+                >
+                  <span>% OF SUPPLY ALLOCATED TO AIRDROP</span>
+                  <span style={{ color: C.text, fontSize: '0.9rem', fontWeight: 700 }}>
+                    {airdropPct.toFixed(2)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={airdropPct}
+                  onChange={(e) => setAirdropPct(parseFloat(e.target.value))}
+                  style={{
+                    width: '100%',
+                    accentColor: C.accent,
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: C.textDim }}>
+                  <span>0%</span>
+                  <span>100%</span>
+                </div>
               </div>
-              <div style={{ fontSize: '2.5rem', fontWeight: 800, color: TIER_COLORS[result.tier].fg, lineHeight: 1 }}>
-                {result.totalScore}
-                <span style={{ fontSize: '1rem', opacity: 0.6 }}> / {result.maxScore}</span>
-              </div>
+
               <div
                 style={{
-                  fontFamily: 'monospace',
+                  marginTop: 14,
+                  paddingTop: 12,
+                  borderTop: `1px solid ${C.borderSoft}`,
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   fontSize: '0.75rem',
-                  color: TIER_COLORS[result.tier].fg,
-                  opacity: 0.7,
-                  marginTop: 6,
                 }}
               >
-                {result.address}
+                <span style={{ color: C.textMute }}>Projected $BASE price</span>
+                <span style={{ color: C.gold, fontWeight: 700, fontFamily: 'monospace' }}>
+                  {formatUsd(projectedPrice)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginTop: 4 }}>
+                <span style={{ color: C.textDim }}>Pool size</span>
+                <span style={{ color: C.textMute, fontFamily: 'monospace' }}>
+                  {formatCompactNumber(poolTokens)} $BASE
+                </span>
               </div>
             </div>
+          </div>
 
-            {/* Allocation estimate */}
-            {estimate && (
-              <div
-                style={{
-                  background: estimate.eligible
-                    ? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)'
-                    : '#fef2f2',
-                  border: `1px solid ${estimate.eligible ? '#86efac' : '#fecaca'}`,
-                  borderRadius: 16,
-                  padding: '1.25rem',
-                  marginBottom: '1rem',
-                  textAlign: 'center',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.7rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: estimate.eligible ? '#065f46' : '#991b1b',
-                    fontWeight: 700,
-                    marginBottom: 4,
-                  }}
-                >
-                  Your projected $BASE allocation
-                </div>
-                <div
-                  style={{
-                    fontSize: '2.75rem',
-                    fontWeight: 800,
-                    color: estimate.eligible ? '#065f46' : '#991b1b',
-                    lineHeight: 1.1,
-                    fontFamily: 'monospace',
-                  }}
-                >
-                  {formatCompactNumber(estimate.userTokens)}
-                  <span style={{ fontSize: '1rem', opacity: 0.6, marginLeft: 6 }}>$BASE</span>
-                </div>
-                <div
-                  style={{
-                    fontSize: '1.25rem',
-                    fontWeight: 700,
-                    color: estimate.eligible ? '#065f46' : '#991b1b',
-                    marginTop: 6,
-                  }}
-                >
-                  ≈ {formatUsd(estimate.userUsd)}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 4 }}>
-                  at {formatUsd(estimate.tokenPriceUsd)} / $BASE
-                </div>
-                {estimate.eligible && estimate.farcasterBoostMultiplier > 1 && (
+          {/* RIGHT: criteria + result */}
+          <div>
+            {result ? (
+              <>
+                {result.resolvedFrom && (
                   <div
                     style={{
-                      display: 'inline-block',
-                      marginTop: 10,
-                      padding: '0.35rem 0.65rem',
-                      background: '#f3e8ff',
-                      border: '1px solid #d8b4fe',
-                      borderRadius: 8,
+                      marginBottom: 12,
+                      padding: '0.5rem 0.75rem',
+                      background: C.panelAlt,
+                      border: `1px solid ${C.borderSoft}`,
+                      borderRadius: 10,
                       fontSize: '0.75rem',
-                      color: '#6b21a8',
-                      fontWeight: 600,
+                      color: C.textMute,
                     }}
                   >
-                    🟣 Farcaster boost +{((estimate.farcasterBoostMultiplier - 1) * 100).toFixed(1)}%
+                    Resolved <strong style={{ color: C.gold }}>{result.resolvedFrom}</strong> →{' '}
+                    <span style={{ fontFamily: 'monospace', color: C.text }}>{result.address}</span>
                   </div>
                 )}
-                {estimate.hitFloor && (
-                  <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#1e40af', fontWeight: 600 }}>
-                    ⬆️ Floored at {formatCompactNumber(allocParams.floorTokens)} $BASE — you cleared the bar
-                  </div>
-                )}
-                {estimate.hitCap && (
-                  <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#5b21b6', fontWeight: 600 }}>
-                    ⬇️ Capped at {formatCompactNumber(allocParams.whaleAnchorTokens)} $BASE 🎁 — max tier
-                  </div>
-                )}
-                {!estimate.eligible && (
-                  <div style={{ marginTop: 10, fontSize: '0.85rem', color: '#991b1b' }}>
-                    {estimate.failureReasons.map((r, i) => (
-                      <div key={i}>• {r}</div>
-                    ))}
-                  </div>
-                )}
-                <button
-                  onClick={() => setShowAllocSettings((s) => !s)}
-                  style={{
-                    marginTop: 12,
-                    background: 'none',
-                    border: 'none',
-                    color: '#0052FF',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                >
-                  {showAllocSettings ? '▼ Hide tokenomics knobs' : '▶ Tune supply / FDV / cap'}
-                </button>
-              </div>
-            )}
 
-            {/* Allocation params (collapsible) */}
-            {showAllocSettings && (
-              <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '1rem', marginBottom: '1rem' }}>
-                <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 700, color: '#1a1a1a' }}>
-                  Airdrop economics
-                </h3>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-                  {Object.entries(SCENARIOS).map(([key, scenario]) => (
-                    <button
-                      key={key}
-                      onClick={() => setAllocParams((p) => ({ ...p, ...scenario }))}
-                      style={{
-                        flex: 1,
-                        minWidth: 100,
-                        padding: '0.5rem 0.75rem',
-                        background: 'white',
-                        border: '1px solid #d1d5db',
-                        borderRadius: 8,
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: '#374151',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                      }}
-                      title={scenario.note}
-                    >
-                      {scenario.label}
-                    </button>
+                {/* Allocation banner */}
+                {estimate && (
+                  <div
+                    style={{
+                      background: estimate.eligible ? '#0c2618' : '#2a0f12',
+                      border: `1px solid ${estimate.eligible ? C.green + '55' : C.red + '55'}`,
+                      borderRadius: 16,
+                      padding: '1.5rem',
+                      textAlign: 'center',
+                      marginBottom: '1.25rem',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: estimate.eligible ? C.green : '#fca5a5', fontWeight: 700, marginBottom: 6 }}>
+                      Projected $BASE allocation
+                    </div>
+                    <div style={{ fontSize: '2.75rem', fontFamily: 'monospace', fontWeight: 800, color: estimate.eligible ? C.green : '#fca5a5', lineHeight: 1 }}>
+                      {formatCompactNumber(estimate.userTokens)}
+                      <span style={{ fontSize: '1rem', opacity: 0.6, marginLeft: 6 }}>$BASE</span>
+                    </div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 6, color: estimate.eligible ? C.green : '#fca5a5' }}>
+                      ≈ {formatUsd(estimate.userUsd)}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: C.textDim, marginTop: 4 }}>
+                      at {formatUsd(estimate.tokenPriceUsd)} / $BASE
+                    </div>
+                    {estimate.eligible && estimate.farcasterBoostMultiplier > 1 && (
+                      <div
+                        style={{
+                          display: 'inline-block',
+                          marginTop: 10,
+                          padding: '0.3rem 0.6rem',
+                          background: '#3b0764',
+                          border: `1px solid ${C.purple}55`,
+                          borderRadius: 8,
+                          fontSize: '0.7rem',
+                          color: '#e9d5ff',
+                          fontWeight: 600,
+                        }}
+                      >
+                        🟣 Farcaster boost +{((estimate.farcasterBoostMultiplier - 1) * 100).toFixed(1)}%
+                      </div>
+                    )}
+                    {estimate.hitFloor && (
+                      <div style={{ marginTop: 6, fontSize: '0.7rem', color: '#93c5fd', fontWeight: 600 }}>
+                        ⬆️ Floored at {formatCompactNumber(allocParams.floorTokens)} $BASE
+                      </div>
+                    )}
+                    {estimate.hitCap && (
+                      <div style={{ marginTop: 6, fontSize: '0.7rem', color: '#e9d5ff', fontWeight: 600 }}>
+                        ⬇️ Capped at {formatCompactNumber(allocParams.whaleAnchorTokens)} $BASE 🎁
+                      </div>
+                    )}
+                    {!estimate.eligible && (
+                      <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#fca5a5', textAlign: 'left' }}>
+                        {estimate.failureReasons.map((r, i) => (
+                          <div key={i}>• {r}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Criteria list */}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {result.metrics.map((m) => (
+                    <CollapsibleCriterion
+                      key={m.id}
+                      metric={m}
+                      open={!!openSections[m.id]}
+                      onToggle={() => toggleSection(m.id)}
+                    />
                   ))}
                 </div>
 
+                {/* Bonus criteria heading */}
                 <div
                   style={{
-                    fontSize: '0.7rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: '#0052FF',
-                    fontWeight: 700,
-                    marginBottom: 8,
+                    marginTop: '1.5rem',
                     paddingBottom: 6,
-                    borderBottom: '2px solid #dbeafe',
+                    fontSize: '0.65rem',
+                    color: C.textDim,
+                    letterSpacing: '0.1em',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
                   }}
                 >
-                  🎛️ Main tokenomics knobs
+                  Bonus credit (opt-in)
                 </div>
-                <AllocNumberRow
-                  label="Total $BASE supply"
-                  value={allocParams.totalSupply}
-                  onChange={(v) => updateAlloc('totalSupply', v)}
-                  suffix="tokens"
-                  hint="ARB 10B · STRK 10B · JUP 10B · OP 4.3B · ZK 21B · ZRO 1B"
-                />
-                <AllocNumberRow
-                  label="Airdrop allocation (% of supply)"
-                  value={allocParams.airdropPct * 100}
-                  onChange={(v) => updateAlloc('airdropPct', v / 100)}
-                  suffix="%"
-                  hint="Mean of ARB 11.6% / OP 5% / ZK 17.5% / ZRO 8.5% ≈ 10%"
-                />
-                <AllocNumberRow
-                  label="FDV at launch"
-                  value={allocParams.fdvUsd}
-                  onChange={(v) => updateAlloc('fdvUsd', v)}
-                  suffix="USD"
-                  hint={`Projected price = ${formatUsd(projectedPrice)} per $BASE`}
-                />
+                {result.bonusMetrics.map((m) => (
+                  <CollapsibleCriterion
+                    key={m.id}
+                    metric={m}
+                    open={!!openSections[m.id]}
+                    onToggle={() => toggleSection(m.id)}
+                    bonus
+                  />
+                ))}
 
+                {/* Sybil flags */}
+                {result.sybilFlags.length > 0 && (
+                  <>
+                    <div
+                      style={{
+                        marginTop: '1.5rem',
+                        paddingBottom: 6,
+                        fontSize: '0.65rem',
+                        color: '#fca5a5',
+                        letterSpacing: '0.1em',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Sybil flags
+                    </div>
+                    {result.sybilFlags.map((f) => (
+                      <div
+                        key={f.id}
+                        style={{
+                          padding: '0.75rem 0',
+                          borderBottom: `1px solid ${C.borderSoft}`,
+                          color: f.severity === 'critical' ? '#fca5a5' : '#fcd34d',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {f.severity === 'critical' ? '🚫' : '⚠️'} {f.name} (−{f.penalty} pts)
+                        <div style={{ fontSize: '0.7rem', color: C.textMute, marginTop: 2 }}>{f.description}</div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {CRITERIA.map((c) => (
+                  <CollapsibleStaticCriterion
+                    key={c.id}
+                    name={c.name}
+                    description={c.description}
+                    tiers={c.tiers.map((t) => `${t.label} = ${t.points}pt`)}
+                    open={!!openSections[c.id]}
+                    onToggle={() => toggleSection(c.id)}
+                  />
+                ))}
                 <div
                   style={{
-                    fontSize: '0.7rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: '#6b7280',
-                    fontWeight: 700,
-                    marginTop: 16,
-                    marginBottom: 8,
+                    marginTop: '1.5rem',
                     paddingBottom: 6,
-                    borderBottom: '1px solid #e5e7eb',
+                    fontSize: '0.65rem',
+                    color: C.textDim,
+                    letterSpacing: '0.1em',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
                   }}
                 >
-                  Distribution shape
+                  Bonus credit (opt-in)
                 </div>
-                <AllocNumberRow
-                  label="Floor ($BASE min-eligible user gets)"
-                  value={allocParams.floorTokens}
-                  onChange={(v) => updateAlloc('floorTokens', v)}
-                  suffix="$BASE"
-                  hint={`= ${formatUsd(allocParams.floorTokens * projectedPrice)} at current FDV`}
-                />
-                <AllocNumberRow
-                  label="Whale cap ($BASE max) 🎁"
-                  value={allocParams.whaleAnchorTokens}
-                  onChange={(v) => updateAlloc('whaleAnchorTokens', v)}
-                  suffix="$BASE"
-                  hint={`= ${formatUsd(allocParams.whaleAnchorTokens * projectedPrice)} at current FDV`}
-                />
-                <AllocNumberRow
-                  label="Farcaster boost (max)"
-                  value={allocParams.farcasterBoostPct * 100}
-                  onChange={(v) => updateAlloc('farcasterBoostPct', v / 100)}
-                  suffix="%"
-                  hint="Multiplicative bonus when FID is linked. 0 = disabled, no penalty"
-                />
-                <button
-                  onClick={() => setAllocParams(DEFAULT_PARAMS)}
-                  style={{
-                    marginTop: 8,
-                    background: 'none',
-                    border: '1px solid #e5e7eb',
-                    color: '#6b7280',
-                    fontSize: '0.8rem',
-                    padding: '0.4rem 0.75rem',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Reset to defaults
-                </button>
-              </div>
-            )}
-
-            {/* Warnings */}
-            {result.warnings.length > 0 && (
-              <div
-                style={{
-                  background: '#fffbeb',
-                  border: '1px solid #fcd34d',
-                  borderRadius: 12,
-                  padding: '0.75rem 1rem',
-                  fontSize: '0.85rem',
-                  color: '#92400e',
-                  marginBottom: '1rem',
-                }}
-              >
-                {result.warnings.map((w, i) => (
-                  <div key={i}>• {w}</div>
+                {BONUS_CRITERIA.map((c) => (
+                  <CollapsibleStaticCriterion
+                    key={c.id}
+                    name={c.name}
+                    description={c.description}
+                    tiers={c.tiers.map((t) => `${t.label} = +${t.points}pt`)}
+                    open={!!openSections[c.id]}
+                    onToggle={() => toggleSection(c.id)}
+                  />
                 ))}
               </div>
             )}
-
-            {/* Metrics */}
-            <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '1rem', marginBottom: '1rem' }}>
-              <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700, color: '#1a1a1a' }}>
-                Criteria
-              </h3>
-              <div style={{ display: 'grid', gap: '0.5rem' }}>
-                {result.metrics.map((m) => {
-                  const pct = (m.pointsEarned / m.maxPoints) * 100
-                  return (
-                    <div key={m.id} style={{ padding: '0.75rem', border: '1px solid #f3f4f6', borderRadius: 10, background: '#fafafa' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                        <div style={{ fontWeight: 600, color: '#1a1a1a', fontSize: '0.9rem' }}>
-                          {m.name}
-                          <span style={{ marginLeft: 8, fontSize: '0.65rem', padding: '2px 6px', borderRadius: 6, background: '#e0e7ff', color: '#3730a3', textTransform: 'uppercase' }}>
-                            {m.category}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: pct >= 100 ? '#065f46' : pct > 0 ? '#1e40af' : '#9ca3af' }}>
-                          {m.pointsEarned} / {m.maxPoints} pts
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#4b5563', marginBottom: 4 }}>
-                        Value: <strong>{m.displayValue}</strong> · Tier: {m.tierLabel}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
-                        Inspired by: {m.inspiredBy.join(' · ')}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Bonus criteria — Base App / Mini Apps */}
-            <div style={{ background: 'white', borderRadius: 16, border: '1px solid #c7d2fe', padding: '1rem', marginBottom: '1rem' }}>
-              <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: '#1a1a1a' }}>
-                Bonus credit
-                <span style={{ marginLeft: 8, fontSize: '0.75rem', padding: '2px 8px', borderRadius: 6, background: '#e0e7ff', color: '#3730a3', fontWeight: 600 }}>
-                  +{result.bonusScore} / {result.bonusMaxScore} pts
-                </span>
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0 0 0.75rem' }}>
-                Optional credit for Base App adoption and mini app usage. Not deducted if absent.
-              </p>
-              <div style={{ display: 'grid', gap: '0.5rem' }}>
-                {result.bonusMetrics.map((m) => {
-                  const pct = (m.pointsEarned / m.maxPoints) * 100
-                  return (
-                    <div key={m.id} style={{ padding: '0.75rem', border: '1px solid #f3f4f6', borderRadius: 10, background: '#fafafa' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                        <div style={{ fontWeight: 600, color: '#1a1a1a', fontSize: '0.9rem' }}>
-                          {m.name}
-                          <span style={{ marginLeft: 8, fontSize: '0.65rem', padding: '2px 6px', borderRadius: 6, background: '#e0e7ff', color: '#3730a3', textTransform: 'uppercase' }}>
-                            {m.category}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: pct >= 100 ? '#065f46' : pct > 0 ? '#1e40af' : '#9ca3af' }}>
-                          +{m.pointsEarned} / {m.maxPoints} pts
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#4b5563', marginBottom: 4 }}>
-                        Value: <strong>{m.displayValue}</strong> · Tier: {m.tierLabel}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
-                        Inspired by: {m.inspiredBy.join(' · ')}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              {result.baseApp.provided && (
-                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#4b5563', fontFamily: 'monospace', background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: 8 }}>
-                  Base App: {result.baseApp.address}
-                  {' · '}
-                  {result.baseApp.isSmartContract ? '✓ Smart Wallet' : '✗ EOA'}
-                  {' · '}
-                  {result.baseApp.txCount} txs
-                </div>
-              )}
-            </div>
-
-            {/* Sybil */}
-            <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '1rem', marginBottom: '1rem' }}>
-              <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700, color: '#1a1a1a' }}>
-                Sybil flags
-              </h3>
-              {result.sybilFlags.length === 0 ? (
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#16a34a' }}>
-                  ✓ No sybil flags triggered.
-                </p>
-              ) : (
-                <div style={{ display: 'grid', gap: '0.5rem' }}>
-                  {result.sybilFlags.map((f) => (
-                    <div
-                      key={f.id}
-                      style={{
-                        padding: '0.65rem 0.75rem',
-                        borderRadius: 10,
-                        border: `1px solid ${f.severity === 'critical' ? '#fecaca' : '#fcd34d'}`,
-                        background: f.severity === 'critical' ? '#fef2f2' : '#fffbeb',
-                      }}
-                    >
-                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: f.severity === 'critical' ? '#991b1b' : '#92400e' }}>
-                        {f.severity === 'critical' ? '🚫' : '⚠️'} {f.name} (−{f.penalty} pts)
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#4b5563', marginTop: 2 }}>
-                        {f.description}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Data sources */}
-            <div style={{ fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center', marginBottom: '1.5rem' }}>
-              Data sources: Base mainnet RPC {result.dataSources.rpc ? '✓' : '✗'} ·
-              BaseScan {result.dataSources.basescan ? '✓' : '✗ (rate-limited or unconfigured)'} ·
-              Identity DB (Prisma)
-            </div>
-          </>
-        )}
-
-        {!result && !isLoading && (
-          <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '1.25rem' }}>
-            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>How scoring works</h3>
-            <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: '#4b5563', lineHeight: 1.5 }}>
-              Each criterion has 3 tiers (1 / 2 / 3 points). Max score: 18. Sybil flags subtract
-              points; critical flags zero out the score.
-            </p>
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-              {CRITERIA.map((c) => (
-                <div key={c.id} style={{ padding: '0.5rem 0.75rem', background: '#fafafa', borderRadius: 8, fontSize: '0.8rem' }}>
-                  <strong>{c.name}</strong> ({c.category}) — {c.description}
-                  <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 2 }}>
-                    {c.tiers.map((t) => `${t.label} = ${t.points}pt`).join(' · ')}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <h3 style={{ margin: '1rem 0 0.5rem', fontSize: '1rem', fontWeight: 700 }}>
-              Bonus credit (optional)
-            </h3>
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-              {BONUS_CRITERIA.map((c) => (
-                <div key={c.id} style={{ padding: '0.5rem 0.75rem', background: '#eef2ff', borderRadius: 8, fontSize: '0.8rem' }}>
-                  <strong>{c.name}</strong> ({c.category}) — {c.description}
-                  <div style={{ fontSize: '0.7rem', color: '#6366f1', marginTop: 2 }}>
-                    {c.tiers.map((t) => `${t.label} = +${t.points}pt`).join(' · ')}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <h3 style={{ margin: '1rem 0 0.5rem', fontSize: '1rem', fontWeight: 700 }}>Sybil flags</h3>
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-              {SYBIL_FLAGS.map((f) => (
-                <div key={f.id} style={{ padding: '0.5rem 0.75rem', background: '#fafafa', borderRadius: 8, fontSize: '0.8rem' }}>
-                  <strong>{f.name}</strong> — {f.description} (−{f.penalty} pts,{' '}
-                  {f.severity})
-                </div>
-              ))}
-            </div>
           </div>
-        )}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            maxWidth: 1100,
+            margin: '0 auto',
+            padding: '1.5rem',
+            borderTop: `1px solid ${C.borderSoft}`,
+            textAlign: 'center',
+            fontSize: '0.7rem',
+            color: C.textDim,
+            lineHeight: 1.55,
+          }}
+        >
+          Hypothetical calculator. Not affiliated with Base, Coinbase, or any token issuer.
+          <br />
+          Scoring mirrors public eligibility patterns from the Arbitrum, Optimism, zkSync, and LayerZero airdrops.
+        </div>
       </div>
-    </Layout>
+
+      <style jsx global>{`
+        body {
+          margin: 0;
+          background: ${C.bg};
+        }
+        @media (max-width: 720px) {
+          .checker-grid {
+            grid-template-columns: 1fr !important;
+            gap: 2rem !important;
+          }
+        }
+        input[type="range"]::-webkit-slider-thumb {
+          background: ${C.accent};
+        }
+        input[type="range"]::-moz-range-thumb {
+          background: ${C.accent};
+        }
+      `}</style>
+    </>
   )
 }
 
-function MinBadge({ label, passed, hint }: { label: string; passed: boolean; hint: string }) {
+function PlusToggle({
+  active,
+  hasValue,
+  onClick,
+  label,
+}: {
+  active: boolean
+  hasValue: boolean
+  onClick: () => void
+  label: string
+}) {
   return (
-    <div
+    <button
+      onClick={onClick}
+      title={label}
+      type="button"
       style={{
-        flex: 1,
-        minWidth: 130,
-        padding: '0.4rem 0.6rem',
-        background: passed ? '#dcfce7' : '#fee2e2',
-        border: `1px solid ${passed ? '#86efac' : '#fca5a5'}`,
-        borderRadius: 8,
+        width: 38,
+        height: 38,
+        border: 'none',
+        borderRadius: '50%',
+        background: hasValue ? C.gold : active ? C.accentSoft : C.panelAlt,
+        color: hasValue || active ? 'white' : C.textMute,
+        cursor: 'pointer',
+        fontSize: '1.1rem',
+        lineHeight: 1,
+        fontWeight: 600,
+        margin: 'auto 0',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
       }}
     >
-      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: passed ? '#065f46' : '#991b1b' }}>
-        {passed ? '✓' : '✗'} {label}
-      </div>
-      <div style={{ fontSize: '0.6rem', color: '#6b7280', marginTop: 1 }}>{hint}</div>
-    </div>
+      {hasValue ? '✓' : '+'}
+    </button>
   )
 }
 
-function PriceStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div style={{ textAlign: 'center', minWidth: 100 }}>
-      <div
-        style={{
-          fontSize: '0.6rem',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          color: '#6b7280',
-          fontWeight: 600,
-          marginBottom: 3,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: highlight ? '1.3rem' : '1rem',
-          fontWeight: highlight ? 800 : 700,
-          color: highlight ? '#0052FF' : '#1a1a1a',
-          fontFamily: 'monospace',
-          lineHeight: 1,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  )
-}
-
-function AllocNumberRow({
+function CompactInput({
   label,
   value,
   onChange,
-  suffix,
-  hint,
+  placeholder,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+}) {
+  return (
+    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span
+        style={{
+          fontSize: '0.65rem',
+          fontWeight: 700,
+          color: C.textMute,
+          letterSpacing: '0.06em',
+          minWidth: 160,
+        }}
+      >
+        {label.toUpperCase()}
+      </span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          flex: 1,
+          padding: '0.55rem 0.85rem',
+          background: C.panel,
+          border: `1px solid ${C.border}`,
+          borderRadius: 999,
+          color: C.text,
+          fontSize: '0.85rem',
+          fontFamily: 'monospace',
+          outline: 'none',
+        }}
+      />
+    </div>
+  )
+}
+
+function EconRow({
+  label,
+  value,
+  onChange,
+  unit,
+  onUnitChange,
+  prefix,
 }: {
   label: string
   value: number
   onChange: (v: number) => void
-  suffix?: string
-  hint?: string
+  unit: 'M' | 'B'
+  onUnitChange: (u: 'M' | 'B') => void
+  prefix?: string
 }) {
   return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{label}</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+    <div style={{ marginBottom: 14 }}>
+      <div
+        style={{
+          fontSize: '0.65rem',
+          color: C.textMute,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            background: C.panelAlt,
+            border: `1px solid ${C.border}`,
+            borderRadius: 8,
+            padding: '0 0.65rem',
+          }}
+        >
+          {prefix && <span style={{ color: C.textMute, marginRight: 4 }}>{prefix}</span>}
           <input
             type="number"
             value={value}
             onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
             style={{
-              width: 140,
-              padding: '0.35rem 0.5rem',
-              border: '1px solid #d1d5db',
-              borderRadius: 6,
-              fontSize: '0.85rem',
+              flex: 1,
+              padding: '0.55rem 0',
+              background: 'transparent',
+              border: 'none',
+              color: C.text,
+              fontSize: '0.95rem',
               fontFamily: 'monospace',
-              textAlign: 'right',
               outline: 'none',
+              minWidth: 0,
             }}
           />
-          {suffix && (
-            <span style={{ fontSize: '0.75rem', color: '#6b7280', minWidth: 40 }}>{suffix}</span>
+        </div>
+        <UnitToggle unit={unit} onChange={onUnitChange} />
+      </div>
+    </div>
+  )
+}
+
+function UnitToggle({ unit, onChange }: { unit: 'M' | 'B'; onChange: (u: 'M' | 'B') => void }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        background: C.panelAlt,
+        border: `1px solid ${C.border}`,
+        borderRadius: 8,
+        overflow: 'hidden',
+      }}
+    >
+      {(['M', 'B'] as const).map((u) => (
+        <button
+          key={u}
+          onClick={() => onChange(u)}
+          type="button"
+          style={{
+            padding: '0 0.85rem',
+            background: unit === u ? C.accent : 'transparent',
+            color: unit === u ? 'white' : C.textMute,
+            border: 'none',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          {u}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function CollapsibleCriterion({
+  metric,
+  open,
+  onToggle,
+  bonus,
+}: {
+  metric: Metric
+  open: boolean
+  onToggle: () => void
+  bonus?: boolean
+}) {
+  const passed = metric.pointsEarned > 0
+  const accent = passed ? (bonus ? C.purple : C.green) : C.textDim
+  return (
+    <div style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+      <button
+        onClick={onToggle}
+        type="button"
+        style={{
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          padding: '1rem 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          color: 'inherit',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: accent,
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              color: passed ? C.text : C.textMute,
+              textTransform: 'uppercase',
+            }}
+          >
+            {metric.name}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: '0.75rem', color: accent, fontWeight: 700, fontFamily: 'monospace' }}>
+            {bonus ? '+' : ''}
+            {metric.pointsEarned}/{metric.maxPoints}
+          </span>
+          <span style={{ color: C.textMute, fontSize: '1.1rem', lineHeight: 1, fontWeight: 300 }}>
+            {open ? '−' : '+'}
+          </span>
+        </div>
+      </button>
+      {open && (
+        <div style={{ padding: '0 0 1rem 18px', fontSize: '0.8rem', color: C.textMute, lineHeight: 1.55 }}>
+          <div>
+            Value: <span style={{ color: C.text, fontFamily: 'monospace' }}>{metric.displayValue}</span>
+          </div>
+          <div style={{ marginTop: 2 }}>
+            Tier: <span style={{ color: C.text }}>{metric.tierLabel}</span>
+          </div>
+          {metric.inspiredBy.length > 0 && (
+            <div style={{ marginTop: 4, fontSize: '0.7rem', color: C.textDim }}>
+              Inspired by: {metric.inspiredBy.join(' · ')}
+            </div>
           )}
         </div>
-      </div>
-      {hint && <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 2 }}>{hint}</div>}
+      )}
+    </div>
+  )
+}
+
+function CollapsibleStaticCriterion({
+  name,
+  description,
+  tiers,
+  open,
+  onToggle,
+}: {
+  name: string
+  description: string
+  tiers: string[]
+  open: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+      <button
+        onClick={onToggle}
+        type="button"
+        style={{
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          padding: '1rem 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          color: 'inherit',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span
+            style={{ width: 6, height: 6, borderRadius: '50%', background: C.textDim, flexShrink: 0 }}
+          />
+          <span
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              color: C.textMute,
+              textTransform: 'uppercase',
+            }}
+          >
+            {name}
+          </span>
+        </div>
+        <span style={{ color: C.textMute, fontSize: '1.1rem', lineHeight: 1, fontWeight: 300 }}>
+          {open ? '−' : '+'}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 0 1rem 18px', fontSize: '0.8rem', color: C.textMute, lineHeight: 1.55 }}>
+          {description}
+          <div style={{ marginTop: 4, fontSize: '0.7rem', color: C.textDim }}>
+            {tiers.join(' · ')}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

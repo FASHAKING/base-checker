@@ -94,6 +94,21 @@ export const CRITERIA: Criterion[] = [
       { label: 'Coinbase One active', threshold: 3, points: 3 },
     ],
   },
+  {
+    id: 'basename',
+    name: 'Owns a Basename',
+    category: 'identity',
+    description:
+      'Wallet has a primary .base.eth name set. Strong identity signal — Basenames cost real money and identify a user.',
+    inspiredBy: [
+      'Optimism Gitcoin Passport / ENS bonus',
+      'zkSync crypto-native bonus (ENS holders)',
+    ],
+    tiers: [
+      { label: 'Owns a Basename', threshold: 1, points: 2 },
+      { label: 'Owns a short Basename (≤6 chars)', threshold: 2, points: 3 },
+    ],
+  },
 ]
 
 // Optional bonus criteria — only counted when the user opts in by providing
@@ -211,4 +226,5 @@ export const COMMITMENT_CRITERIA_IDS = [
   'eth_balance',
   'base_verify_identity',
   'wallet_age_days',
+  'basename',
 ] as const
