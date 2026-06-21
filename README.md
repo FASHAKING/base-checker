@@ -406,12 +406,13 @@ Calibrated against actual L2 launches: ARB ($1.40 launch / $14B FDV → $0.40 no
 
 | Parameter | Default | Why |
 |---|---|---|
-| Total supply | 1,000,000,000 ($BASE) | Spec default; matches ZRO exactly |
+| Total supply | **10,000,000,000** ($BASE) | Matches ARB, STRK, JUP. Sub-$1 token price is realistic for L2 launches |
 | Airdrop % | 10% | Mean of ARB 11.62% / OP 5% / ZK 17.5% / ZRO 8.5% |
-| FDV at launch | **$3,000,000,000** | Between JUP ($6.5B) and ZK ($5B). Realistic for current market |
-| Floor | **$500** | Hard floor for min-eligible users. Matches ARB's floor:cap ratio (~10%). Real floors: ARB $1.7k, OP $450, ZK $100, ZRO $225 |
-| Whale anchor (cap) | **$5,000** | Hard cap for max-score users. Median power-user payout across past drops (ARB $3-6k, OP $3-8k, ZRO $3-8k, ZK $2-5k) |
-| Curve exponent | **1.5** | Mild whale skew; 50%-score user gets ~35% of whale tokens. Linear (1.0) would give 50%; ARB's actual curve was closer to 1.8 |
+| FDV at launch | $3,000,000,000 | Between JUP ($6.5B) and ZK ($5B). With 10B supply → $0.30/token (matches ZK $0.22, JUP $0.65) |
+| Floor | **$1,000** | Hard floor for min-eligible users. Mid-range vs. ARB $1.7k, OP $450, ZK $100, ZRO $225 |
+| Whale anchor (cap) | **$50,000** | Hard cap for max-score users. Matches OP outlier whales. Real caps: ARB $14k modal, OP $50k outlier, ZRO $45k, STRK $100k |
+| Curve exponent | 1.5 | Mild whale skew; 50%-score user gets ~35% of whale tokens. Linear (1.0) would give 50%; ARB's actual curve was closer to 1.8 |
+| Farcaster boost | 20% | Multiplicative bonus on top of curve when FID is linked. Full 20% for early-FID + Power Badge users; 0% (no penalty) without |
 
 ### Why floor + cap (not unlimited scaling)
 
@@ -422,11 +423,11 @@ Every successful L2 drop bounded allocations on both ends:
 
 ### Scenarios (one-click presets on the page)
 
-| Scenario | FDV | Wallets | Token price | Models |
+| Scenario | FDV | Token price | Floor | Cap (whale) |
 |---|---|---|---|---|
-| **Bear / sustained** | $1B | 1M | $1.00 | The realistic 6-month post-launch price after airdrop sell pressure |
-| **Base case** (default) | $3B | 700k | $3.00 | Current market launch, between JUP and ZK |
-| **Bull / launch day** | $6B | 500k | $6.00 | Strong launch closer to ZRO ($4.5B) or OP ($8B) |
+| **Bear / sustained** | $1B | $0.10 | $300 | $20,000 |
+| **Base case** (default) | $3B | $0.30 | $1,000 | $50,000 |
+| **Bull / launch day** | $6B | $0.60 | $2,000 | $100,000 |
 
 ### Formula
 
@@ -471,18 +472,19 @@ Inspired by LayerZero's quality-user multipliers and Optimism's Gitcoin Passport
 
 ### Default math walk-through
 
-With **Base case** defaults: token price = **$3**, floor = $500 (≈167 $BASE), cap = $5,000 (≈1,667 $BASE), curve exponent 1.5.
+With **Base case** defaults: 10B supply, $3B FDV → token price = **$0.30**, floor = $1,000 (≈3,333 $BASE), cap = $50,000 (≈166,667 $BASE), curve exponent 1.5.
 
-| Score % | Raw curve value | After floor/cap clamp | USD @ $3 |
+| Score % | Raw curve value | After floor/cap clamp | USD @ $0.30 |
 |---|---|---|---|
 | 0% (fails min eligibility) | 0 | **0 $BASE** | $0 |
-| ~21% (kink point) | ≈167 $BASE | **floored at 167 $BASE** | $500 |
-| 25% (low) | ≈208 $BASE | **208 $BASE** | $625 |
-| 50% (medium) | ≈589 $BASE | **589 $BASE** | $1,768 |
-| 75% (high) | ≈1,083 $BASE | **1,083 $BASE** | $3,247 |
-| 100% (whale, max) | 1,667 $BASE | **capped at 1,667 $BASE** | $5,000 |
+| ~7% (kink point) | ≈3,333 $BASE | **floored at 3,333 $BASE** | $1,000 |
+| 25% (low) | ≈20,830 $BASE | **20,830 $BASE** | $6,250 |
+| 50% (medium) | ≈58,930 $BASE | **58,930 $BASE** | $17,679 |
+| 75% (high) | ≈108,250 $BASE | **108,250 $BASE** | $32,475 |
+| 100% (whale, max, no FID) | 166,667 $BASE | **capped at 166,667 $BASE** | $50,000 |
+| 100% + max Farcaster boost (20%) | 200,000 $BASE → capped | **capped at 166,667 $BASE** | $50,000 |
 
-Anyone below ~21% of max gets the floor ($500). Above that, they scale up the curve. At 100% they hit the cap ($5,000). These figures align with what actual users received in comparable drops (ARB $1.7k–$14k, OP $450–$8k, ZRO $225–$45k).
+Anyone below ~7% of max gets the floor ($1,000). Above that, they scale up the curve. At 100% they hit the cap ($50,000) — even Farcaster boosters get clamped here. These figures align with what actual users received in comparable drops (ARB $1.7k–$14k, OP $450–$50k, ZRO $225–$45k, STRK $100–$100k).
 
 ---
 

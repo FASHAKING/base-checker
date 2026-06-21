@@ -26,11 +26,11 @@ export type AllocationParams = {
 }
 
 export const DEFAULT_PARAMS: AllocationParams = {
-  totalSupply: 1_000_000_000,
+  totalSupply: 10_000_000_000,
   airdropPct: 0.10,
   fdvUsd: 3_000_000_000,
-  floorUsd: 500,
-  whaleAnchorUsd: 5_000,
+  floorUsd: 1_000,
+  whaleAnchorUsd: 50_000,
   curveExponent: 1.5,
   farcasterBoostPct: 0.20,
 }
@@ -51,24 +51,24 @@ export const SCENARIOS: Record<
     label: 'Bear / sustained',
     note: '6-month post-launch reality. Tokens lost 45-90% from launch in every comparable drop.',
     fdvUsd: 1_000_000_000,
-    floorUsd: 200,
-    whaleAnchorUsd: 3_000,
+    floorUsd: 300,
+    whaleAnchorUsd: 20_000,
     farcasterBoostPct: 0.15,
   },
   base: {
     label: 'Base case',
-    note: 'Default. FDV between JUP ($6.5B) and ZK ($5B). Floor/cap ratio matches ARB ($1.7k/$14k).',
+    note: 'Default. FDV between JUP ($6.5B) and ZK ($5B). Cap matches OP outlier whales (~$50k).',
     fdvUsd: 3_000_000_000,
-    floorUsd: 500,
-    whaleAnchorUsd: 5_000,
+    floorUsd: 1_000,
+    whaleAnchorUsd: 50_000,
     farcasterBoostPct: 0.20,
   },
   bull: {
     label: 'Bull / launch day',
-    note: 'Strong launch closer to ZRO ($4.5B) or OP ($8B). Floor/cap matches OP top-tier range.',
+    note: 'Strong launch closer to ZRO ($4.5B) or OP ($8B). Cap matches STRK rare-whale tier (~$100k).',
     fdvUsd: 6_000_000_000,
-    floorUsd: 1_000,
-    whaleAnchorUsd: 10_000,
+    floorUsd: 2_000,
+    whaleAnchorUsd: 100_000,
     farcasterBoostPct: 0.25,
   },
 }

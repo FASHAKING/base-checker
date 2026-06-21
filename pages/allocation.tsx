@@ -199,7 +199,7 @@ export default function AllocationPage() {
             value={params.totalSupply}
             onChange={(v) => updateParam('totalSupply', v)}
             suffix="tokens"
-            hint="ZRO 1B · ARB 10B · OP 4.3B · ZK 21B"
+            hint="ARB 10B · STRK 10B · JUP 10B · OP 4.3B · ZK 21B · ZRO 1B. Default 10B."
           />
           <NumberRow
             label="Airdrop allocation"
@@ -220,14 +220,14 @@ export default function AllocationPage() {
             value={params.floorUsd}
             onChange={(v) => updateParam('floorUsd', v)}
             suffix="USD"
-            hint="Hard FLOOR. ARB $1.7k · OP $450 · ZK $100 · ZRO $225. Default $500 matches ARB's floor:cap ratio (~10%)."
+            hint="Hard FLOOR. ARB $1.7k · OP $450 · ZK $100 · ZRO $225. Default $1k = mid-range."
           />
           <NumberRow
             label="Whale anchor (USD max-score user gets)"
             value={params.whaleAnchorUsd}
             onChange={(v) => updateParam('whaleAnchorUsd', v)}
             suffix="USD"
-            hint="Hard CAP. Median power-user payouts: ARB $14k, OP $50k (outlier), ZRO $45k. Default $5k = median."
+            hint="Hard CAP. ARB modal $14k · OP outlier $50k · ZK $22k · ZRO $45k · STRK $100k. Default $50k = OP outlier tier."
           />
           <NumberRow
             label="Farcaster boost (max)"
@@ -443,11 +443,11 @@ export default function AllocationPage() {
             </ul>
             <SectionTitle style={{ marginTop: 16 }}>Defaults sourced from real L2 launches</SectionTitle>
             <ul style={{ fontSize: '0.8rem', color: '#4b5563', lineHeight: 1.6, margin: 0, paddingLeft: 18 }}>
-              <li><strong>Supply 1B</strong> — your spec; matches ZRO exactly</li>
+              <li><strong>Supply 10B</strong> — matches ARB, STRK, JUP. Gives a sub-$1 token price (more realistic for L2 launches than 1B which would imply $0.30+)</li>
               <li><strong>Airdrop 10%</strong> — mean of ARB 11.6% / OP 5% / ZK 17.5% / ZRO 8.5%</li>
-              <li><strong>FDV $3B</strong> — between JUP ($6.5B) and ZK ($5B); realistic for current market</li>
-              <li><strong>Floor $500</strong> — min-eligible user payout. Matches ARB's floor:cap ratio (~10%). Real floors: ARB $1.7k, OP $450, ZK $100, ZRO $225</li>
-              <li><strong>Whale anchor (cap) $5k</strong> — max-score user payout. Median power-user payout in past drops (ARB $3-6k, OP $3-8k, ZRO $3-8k, ZK $2-5k)</li>
+              <li><strong>FDV $3B</strong> — between JUP ($6.5B) and ZK ($5B). With 10B supply → $0.30/token, matches ZK $0.22 / JUP $0.65</li>
+              <li><strong>Floor $1k</strong> — min-eligible user payout. Mid-range vs. ARB $1.7k, OP $450, ZK $100, ZRO $225</li>
+              <li><strong>Whale anchor (cap) $50k</strong> — max-score user payout. Matches OP outlier whales. Real caps: ARB $14k modal, OP $50k outlier, ZRO $45k, STRK $100k</li>
               <li><strong>Curve exponent 1.5</strong> — mild whale skew; a 50%-score user gets ~35% of whale tokens (linear would give 50%, ARB's actual curve was steeper)</li>
               <li><strong>Farcaster boost 20%</strong> — multiplicative bonus on top of curve when FID is linked. Full +20% for early-FID + Power Badge users; smaller boost for casual Farcaster users; 0% (no penalty) for non-Farcaster users. Inspired by LayerZero's quality-user multipliers and Optimism's Gitcoin Passport weighting</li>
             </ul>
