@@ -30,6 +30,7 @@ type BasescanTx = {
 
 async function basescanTxList(address: string): Promise<BasescanTx[] | null> {
   const params = new URLSearchParams({
+    chainid: String(config.basescanChainId),
     module: 'account',
     action: 'txlist',
     address,
@@ -48,7 +49,6 @@ async function basescanTxList(address: string): Promise<BasescanTx[] | null> {
     if (!res.ok) return null
     const data = await res.json()
     if (data.status !== '1' || !Array.isArray(data.result)) {
-      // status "0" with empty result is a valid "no txs" response
       if (data.message === 'No transactions found') return []
       return null
     }
