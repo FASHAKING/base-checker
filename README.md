@@ -316,6 +316,60 @@ For more detailed information, see the `/docs` folder:
 
 ---
 
+## Base Airdrop Checker (`/checker`)
+
+A unified eligibility checker for **Base mainnet** wallets, synthesizing patterns from the four largest L2 airdrops plus the Base Verify identity layer in this repo.
+
+### Criteria (six, 1–3 pts each, 18 pts max)
+
+| # | Criterion | Category | Inspired by |
+|---|---|---|---|
+| 1 | Transaction count (≥5 / 25 / 100) | Activity | Arbitrum (≥4 txs), Optimism, zkSync (≥10 txs) |
+| 2 | Distinct months active (≥2 / 6 / 12) | Activity | Arbitrum tiered months, Optimism repeat-user, zkSync (≥3 months) |
+| 3 | Unique contracts touched (≥4 / 10 / 25) | Breadth | Arbitrum (≥4/≥10 contracts), zkSync breadth bonus |
+| 4 | ETH held on Base (≥0.01 / 0.1 / 1) | Capital | zkSync hold ≥$50, Arbitrum bridged-volume tiers |
+| 5 | Wallet age in days (≥30 / 180 / 365) | Longevity | Arbitrum Nitro snapshot, Optimism pre-snapshot bonus |
+| 6 | Base Verify identity | Identity | **Base Verify (this repo)** + zkSync crypto-native bonus |
+
+### Sybil flags (penalties)
+
+| Flag | Severity | Inspired by |
+|---|---|---|
+| Zero txs on Base | Critical (-99) | Every L2 |
+| Wallet < 7 days old on Base | Warning (-1) | LayerZero sniper, zkSync cluster |
+| All activity within 1 calendar month despite ≥5 txs | Warning (-2) | Optimism repeat-user, zkSync pattern-similarity |
+| Identity already claimed from another wallet | Critical (-99) | Base Verify deterministic token (this repo) |
+
+### Tiers
+
+- `0 pts` → **Ineligible**
+- `1–6 pts` → **Low** (minimal activity)
+- `7–10 pts` → **Medium** (active user)
+- `11–15 pts` → **High** (power user)
+- `16–18 pts` → **Whale** (top-tier)
+
+### Architecture
+
+- **Frontend**: `pages/checker.tsx` — paste any address (or use the connected wallet) and run a check
+- **API**: `GET /api/check-wallet?address=0x…` — returns a `CheckerResult` JSON
+- **Scoring**: `lib/baseChecker.ts` + `lib/baseCheckerCriteria.ts`
+- **Data sources**:
+  - Base mainnet RPC (`viem` + `https://mainnet.base.org`) — balance, tx count fallback
+  - BaseScan API — months active, unique contracts, wallet age, first-tx timestamp
+  - Prisma DB — Base Verify identity check (re-uses existing `verified_users` table)
+
+### What's similar to other L2 airdrops, what's different
+
+**Similar**: tx-count tiers, distinct months active, contract breadth, capital commitment — these are the four near-universal pillars across ARB, OP, ZK, ZRO.
+
+**Different / unique to Base**:
+1. **Identity-as-a-pillar.** No other major L2 used a privacy-preserving social identity layer like Base Verify as a first-class eligibility input. Here a verified X Blue or Coinbase One trait scores like 0.1 ETH held.
+2. **Deterministic anti-sybil at the identity layer.** zkSync and LayerZero ran reactive sybil sweeps post-facto; Base Verify enforces "one identity → one token → one claim" at write time (see `pages/api/verify-token.ts:120-127`).
+3. **No bridge-volume requirement.** Most L2 drops weighted bridged-in capital; Base is the canonical "your money is already here" L2, so capital is measured as held balance, not bridged volume.
+4. **Lower tx-count thresholds.** Base mainnet gas is cheap enough that active users trivially clear Arbitrum-style thresholds, so the tiers are calibrated higher per point.
+
+---
+
 ## Get Started
 
 **Want to integrate Base Verify?** Fill out the [interest form](https://forms.gle/6L4hWAHkojYcefz27) and we'll reach out with API access.

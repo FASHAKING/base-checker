@@ -20,6 +20,11 @@ export const config = {
   claimChainId: parseInt(process.env.NEXT_PUBLIC_CLAIM_CHAIN_ID || '84532', 10),
   registryContractAddress:
     process.env.NEXT_PUBLIC_REGISTRY_CONTRACT_ADDRESS || '0x422cF0f188F8Bf9d93E2810CA429d1bB5cdd620d',
+
+  // Base mainnet — used by /checker for L2-style eligibility scoring
+  baseMainnetRpcUrl: process.env.BASE_MAINNET_RPC_URL || 'https://mainnet.base.org',
+  basescanApiUrl: process.env.BASESCAN_API_URL || 'https://api.basescan.org/api',
+  basescanApiKey: process.env.BASESCAN_API_KEY || '',
 }
 
 const SEPOLIA_EXPLORER = 'https://sepolia.basescan.org/address'

@@ -196,6 +196,19 @@ export function Layout({ children, title = "Base Verify Demo" }: LayoutProps) {
               Claim Onchain Airdrop
             </button>
           )}
+          {!router.asPath.startsWith("/checker") && (
+            <>
+              <span style={{ color: "#d1d5db", fontSize: "0.8rem" }}>•</span>
+              <button
+                onClick={() => router.push("/checker")}
+                style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#1a1a1a"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#9ca3af"; }}
+              >
+                Base Airdrop Checker
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
