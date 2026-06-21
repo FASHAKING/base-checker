@@ -114,9 +114,58 @@ export default function CheckerPage() {
   const projectedPrice = fdvUsd / totalSupply
   const poolTokens = totalSupply * (airdropPct / 100)
 
+  // Self-attested identity tiers (user-toggleable since we can't verify
+  // X Blue / Coinbase One without forcing a wallet connection + signature).
+  // Keys = tier point value; we take max(selected) → criterion value.
+  const [identityTiers, setIdentityTiers] = useState<Set<number>>(new Set())
+  const toggleIdentityTier = (tier: number) =>
+    setIdentityTiers((s) => {
+      const next = new Set(s)
+      if (next.has(tier)) next.delete(tier)
+      else next.add(tier)
+      return next
+    })
+
+  // Apply self-attestation overrides on top of the backend result.
+  const displayResult: Result | null = useMemo(() => {
+    if (!result) return null
+    if (identityTiers.size === 0) return result
+    const override = result.metrics.find((m) => m.id === 'base_verify_identity')
+    if (!override) return result
+    const labels = ['Verified Coinbase account', 'X Blue Checkmark', 'Coinbase One active']
+    const newValue = Math.max(...Array.from(identityTiers))
+    const delta = newValue - override.pointsEarned
+    return {
+      ...result,
+      metrics: result.metrics.map((m) =>
+        m.id === 'base_verify_identity'
+          ? {
+              ...m,
+              value: newValue,
+              pointsEarned: newValue,
+              tierLabel: labels[newValue - 1] ?? m.tierLabel,
+              displayValue: 'Self-reported by you',
+            }
+          : m,
+      ),
+      totalScore: result.totalScore + delta,
+      minimumEligibility: {
+        ...result.minimumEligibility,
+        hasCommitment: result.minimumEligibility.hasCommitment || newValue >= 1,
+        meets:
+          (result.minimumEligibility.hasActivity) &&
+          (result.minimumEligibility.hasCommitment || newValue >= 1) &&
+          !result.minimumEligibility.hasCriticalSybil,
+        failureReasons: result.minimumEligibility.failureReasons.filter(
+          (r) => !r.toLowerCase().includes('commitment'),
+        ),
+      },
+    }
+  }, [result, identityTiers])
+
   const estimate = useMemo(
-    () => (result ? estimateAllocation(result, allocParams) : null),
-    [result, allocParams],
+    () => (displayResult ? estimateAllocation(displayResult, allocParams) : null),
+    [displayResult, allocParams],
   )
 
   const runCheck = async () => {
@@ -308,9 +357,9 @@ export default function CheckerPage() {
         >
           {/* LEFT: result / intro + economics */}
           <div>
-            {result && estimate ? (
+            {displayResult && estimate ? (
               <ResultPanel
-                result={result}
+                result={displayResult}
                 estimate={estimate}
                 shortAddr={shortAddr}
                 allocParams={allocParams}
@@ -426,8 +475,12 @@ export default function CheckerPage() {
 
           {/* RIGHT: criteria with sub-bullets per tier */}
           <div>
-            {result ? (
-              <CriteriaList result={result} />
+            {displayResult ? (
+              <CriteriaList
+                result={displayResult}
+                identityTiers={identityTiers}
+                onToggleIdentityTier={toggleIdentityTier}
+              />
             ) : (
               <RubricList />
             )}
@@ -633,14 +686,44 @@ function IntroPanel() {
   )
 }
 
-function CriteriaList({ result }: { result: Result }) {
+function CriteriaList({
+  result,
+  identityTiers,
+  onToggleIdentityTier,
+}: {
+  result: Result
+  identityTiers: Set<number>
+  onToggleIdentityTier: (tier: number) => void
+}) {
   const metricById: Record<string, Metric> = {}
   result.metrics.forEach((m) => (metricById[m.id] = m))
   result.bonusMetrics.forEach((m) => (metricById[m.id] = m))
   return (
     <div>
+      {/* Self-attestation hint */}
+      <div
+        style={{
+          padding: '0.65rem 0.85rem',
+          background: 'rgba(217,119,6,0.08)',
+          border: `1px solid rgba(217,119,6,0.25)`,
+          borderRadius: 10,
+          fontSize: '0.72rem',
+          color: C.textMute,
+          marginBottom: '1rem',
+          lineHeight: 1.5,
+        }}
+      >
+        <span style={{ color: C.gold, fontWeight: 700 }}>💡 No wallet connect needed.</span>{' '}
+        For <strong>Base Verify Identity</strong>, you can toggle the tiers below yourself if they apply to you — your score and allocation update instantly.
+      </div>
       {CRITERIA.map((c) => (
-        <CriterionRow key={c.id} criterion={c} metric={metricById[c.id]} />
+        <CriterionRow
+          key={c.id}
+          criterion={c}
+          metric={metricById[c.id]}
+          identityTiers={c.id === 'base_verify_identity' ? identityTiers : undefined}
+          onToggleIdentityTier={c.id === 'base_verify_identity' ? onToggleIdentityTier : undefined}
+        />
       ))}
       <div
         style={{
@@ -711,12 +794,18 @@ function CriterionRow({
   criterion,
   metric,
   bonus,
+  identityTiers,
+  onToggleIdentityTier,
 }: {
   criterion: Criterion
   metric?: Metric
   bonus?: boolean
+  identityTiers?: Set<number>
+  onToggleIdentityTier?: (tier: number) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const isSelfAttest = !!identityTiers && !!onToggleIdentityTier
+  // Open self-attestable rows by default so users see they can toggle
+  const [open, setOpen] = useState(!!isSelfAttest)
   const passed = !!metric && metric.pointsEarned > 0
   const headColor = passed ? (bonus ? C.purple : C.green) : C.red
   return (
@@ -785,10 +874,28 @@ function CriterionRow({
       </button>
       {open && (
         <div style={{ paddingBottom: '0.85rem' }}>
+          {isSelfAttest && (
+            <div
+              style={{
+                fontSize: '0.7rem',
+                color: C.gold,
+                fontWeight: 600,
+                marginLeft: 6,
+                marginBottom: 8,
+                lineHeight: 1.4,
+              }}
+            >
+              ↓ Click any tier below to self-report (no wallet connection required)
+            </div>
+          )}
           {criterion.tiers.map((t) => {
-            const tierMet = !!metric && metric.value >= t.threshold
-            return (
-              <div key={t.label} style={{ display: 'flex', gap: 10, marginLeft: 6, marginBottom: 4 }}>
+            const selected = !!identityTiers && identityTiers.has(t.points)
+            const tierMet = isSelfAttest
+              ? selected
+              : !!metric && metric.value >= t.threshold
+
+            const content = (
+              <>
                 <span
                   style={{
                     width: 14,
@@ -802,7 +909,7 @@ function CriterionRow({
                 >
                   {tierMet ? PASS : FAIL}
                 </span>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, textAlign: 'left' }}>
                   <div
                     style={{
                       fontSize: '0.8rem',
@@ -815,7 +922,7 @@ function CriterionRow({
                       (+{t.points} pt{t.points > 1 ? 's' : ''})
                     </span>
                   </div>
-                  {metric && (
+                  {metric && !isSelfAttest && (
                     <div
                       style={{
                         fontSize: '0.72rem',
@@ -827,7 +934,62 @@ function CriterionRow({
                       {metric.displayValue}
                     </div>
                   )}
+                  {isSelfAttest && selected && (
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        color: C.green,
+                        marginTop: 1,
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      ✓ Self-reported
+                    </div>
+                  )}
                 </div>
+              </>
+            )
+
+            const sharedStyle: React.CSSProperties = {
+              display: 'flex',
+              gap: 10,
+              marginLeft: 6,
+              marginBottom: 4,
+              alignItems: 'flex-start',
+              padding: isSelfAttest ? '6px 8px' : 0,
+              borderRadius: isSelfAttest ? 8 : 0,
+              background:
+                isSelfAttest && selected
+                  ? 'rgba(74,222,128,0.08)'
+                  : isSelfAttest
+                  ? 'rgba(255,255,255,0.02)'
+                  : 'transparent',
+              border:
+                isSelfAttest && selected
+                  ? `1px solid ${C.green}55`
+                  : isSelfAttest
+                  ? `1px solid ${C.borderSoft}`
+                  : 'none',
+            }
+
+            return isSelfAttest ? (
+              <button
+                key={t.label}
+                type="button"
+                onClick={() => onToggleIdentityTier!(t.points)}
+                style={{
+                  ...sharedStyle,
+                  width: '100%',
+                  cursor: 'pointer',
+                  color: 'inherit',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {content}
+              </button>
+            ) : (
+              <div key={t.label} style={sharedStyle}>
+                {content}
               </div>
             )
           })}
