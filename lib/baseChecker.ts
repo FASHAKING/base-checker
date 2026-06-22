@@ -157,7 +157,7 @@ export async function checkWallet(
   let baseAppAddress: `0x${string}` | null = null
   if (baseAppAddressRaw && baseAppAddressRaw.trim()) {
     if (!isAddress(baseAppAddressRaw)) {
-      warnings.push('Base App address invalid — ignored.')
+      warnings.push('Base App address invalid, ignored.')
     } else {
       baseAppAddress = baseAppAddressRaw.toLowerCase() as `0x${string}`
     }
@@ -352,7 +352,7 @@ export async function checkWallet(
       } else {
         baseAppDisplay = 'EOA (not a smart wallet)'
         warnings.push(
-          'Address provided as Base App wallet has no contract code — it is an EOA, not a Smart Wallet. No bonus awarded.',
+          'Address provided as Base App wallet has no contract code; it is an EOA, not a Smart Wallet. No bonus awarded.',
         )
       }
     } catch {
@@ -435,11 +435,11 @@ export async function checkWallet(
   const failureReasons: string[] = []
   if (!hasActivity)
     failureReasons.push(
-      'No activity dimension passed — need ≥1 tier in tx count, months active, or unique contracts.',
+      'No activity dimension passed. Need ≥1 tier in tx count, months active, or unique contracts.',
     )
   if (!hasCommitment)
     failureReasons.push(
-      'No commitment dimension passed — need ≥1 tier in ETH balance, Base Verify identity, or wallet age.',
+      'No commitment dimension passed. Need ≥1 tier in ETH balance, Base Verify identity, or wallet age.',
     )
   if (hasCriticalSybil) failureReasons.push('Critical sybil flag triggered.')
 

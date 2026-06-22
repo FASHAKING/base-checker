@@ -102,7 +102,7 @@ export const CRITERIA: Criterion[] = [
     name: 'Owns a Basename',
     category: 'identity',
     description:
-      'Wallet has a primary .base.eth name set. Strong identity signal — Basenames cost real money and identify a user.',
+      'Wallet has a primary .base.eth name set. Strong identity signal. Basenames cost real money and identify a user.',
     inspiredBy: [
       'Optimism Gitcoin Passport / ENS bonus',
       'zkSync crypto-native bonus (ENS holders)',

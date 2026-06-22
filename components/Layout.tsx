@@ -70,7 +70,7 @@ export function Layout({ children, title = "Base Airdrop Checker" }: LayoutProps
           color: "#9ca3af",
         }}
       >
-        Base Airdrop Checker — scoring rubric blended from ARB, OP, ZK, ZRO airdrops
+        Base Airdrop Checker. Scoring rubric blended from ARB, OP, ZK, ZRO airdrops
         <div
           style={{
             marginTop: 10,

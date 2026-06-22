@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   CRITERIA,
   BONUS_CRITERIA,
@@ -199,7 +199,7 @@ export default function CheckerPage() {
         <meta name="description" content="Check any Base mainnet wallet or basename against a unified airdrop eligibility rubric." />
         <link rel="icon" href="/base-logo.png" type="image/png" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
           rel="stylesheet"
         />
       </Head>
@@ -603,13 +603,13 @@ function ResultPanel({
     <div>
       <h1
         style={{
-          fontFamily: '"Lora", Georgia, serif',
-          fontWeight: 500,
-          fontSize: 'clamp(2.5rem, 5vw, 3.6rem)',
+          fontFamily: '"Inter", system-ui, sans-serif',
+          fontWeight: 900,
+          fontSize: 'clamp(3rem, 6vw, 4.5rem)',
           lineHeight: 1.0,
           margin: '0 0 0.5rem',
+          letterSpacing: '-0.035em',
           color: eligible ? C.text : '#fca5a5',
-          letterSpacing: '-0.02em',
         }}
       >
         {eligible ? "You're Eligible!" : 'Ahh, Shoot! 😅'}
@@ -630,64 +630,97 @@ function ResultPanel({
       )}
       {eligible && <div style={{ marginBottom: '1.25rem' }} />}
 
-      <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 8 }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 10 }}>
         YOU WILL RECEIVE
       </div>
       <div
         style={{
-          display: 'inline-flex',
+          display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          padding: '0.6rem 1.1rem',
-          background: C.panel,
-          border: `1px solid ${C.border}`,
-          borderRadius: 999,
+          gap: 14,
           marginBottom: '1.5rem',
+          flexWrap: 'wrap',
         }}
       >
-        <img src="/base-logo.png" alt="" width={22} height={22} />
-        <span style={{ fontWeight: 800, fontSize: '1.1rem', fontFamily: 'monospace' }}>
+        <img
+          src="/base-logo.png"
+          alt=""
+          width={56}
+          height={56}
+          style={{ flexShrink: 0 }}
+        />
+        <span
+          style={{
+            fontSize: 'clamp(3rem, 6vw, 4.5rem)',
+            fontWeight: 900,
+            color: eligible ? C.green : '#fca5a5',
+            fontFamily: '"Inter", system-ui, sans-serif',
+            letterSpacing: '-0.04em',
+            lineHeight: 1,
+          }}
+        >
           {Math.round(estimate.userTokens).toLocaleString('en-US')}
         </span>
-        <span style={{ color: C.textMute, fontWeight: 700, fontSize: '0.95rem' }}>$BASE</span>
+        <span
+          style={{
+            fontSize: 'clamp(1.4rem, 2.5vw, 2rem)',
+            fontWeight: 800,
+            color: C.textMute,
+            letterSpacing: '0.02em',
+          }}
+        >
+          $BASE
+        </span>
       </div>
 
-      <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 6 }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 10 }}>
         ESTIMATED VALUE
       </div>
       <div
         style={{
-          fontSize: 'clamp(2rem, 4vw, 2.6rem)',
-          fontWeight: 800,
-          color: eligible ? C.green : '#fca5a5',
-          fontFamily: '"Lora", Georgia, serif',
-          letterSpacing: '-0.01em',
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          gap: 8,
+          padding: '0.85rem 1.5rem',
+          background: C.panel,
+          border: `1px solid ${eligible ? 'rgba(74,222,128,0.3)' : C.border}`,
+          borderRadius: 999,
           marginBottom: '1.25rem',
-          lineHeight: 1,
         }}
       >
-        ${Math.round(estimate.userUsd).toLocaleString('en-US')}
+        <span style={{ color: C.textMute, fontWeight: 700, fontSize: '1.1rem' }}>≈</span>
+        <span
+          style={{
+            fontWeight: 900,
+            fontSize: '1.75rem',
+            color: eligible ? C.green : '#fca5a5',
+            fontFamily: '"Inter", system-ui, sans-serif',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          ${Math.round(estimate.userUsd).toLocaleString('en-US')}
+        </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
         <div
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '0.3rem 0.7rem',
+            gap: 8,
+            padding: '0.45rem 0.95rem',
             background: C.panel,
             border: `1px solid ${C.border}`,
             borderRadius: 999,
-            fontSize: '0.75rem',
+            fontSize: '0.95rem',
             color: C.text,
-            fontWeight: 600,
+            fontWeight: 700,
           }}
         >
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: eligible ? C.green : C.red }} />
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: eligible ? C.green : C.red }} />
           Score {result.totalScore} / {result.maxScore}
         </div>
-        <div style={{ fontSize: '0.7rem', color: C.textMute, fontFamily: 'monospace' }}>
+        <div style={{ fontSize: '0.85rem', color: C.textMute, fontFamily: 'monospace' }}>
           {result.resolvedFrom && (
             <>
               <span style={{ color: C.accent }}>{result.resolvedFrom}</span> →{' '}
@@ -721,7 +754,7 @@ function ResultPanel({
       )}
       {estimate.hitFloor && (
         <div style={{ marginTop: 8, fontSize: '0.7rem', color: '#93c5fd', fontWeight: 600 }}>
-          ⬆️ Floored — you cleared the bar
+          ⬆️ Floored, you cleared the bar
         </div>
       )}
       {!eligible && (
@@ -747,27 +780,27 @@ function IntroPanel() {
     <div>
       <h1
         style={{
-          fontFamily: '"Lora", Georgia, serif',
-          fontWeight: 500,
-          fontSize: 'clamp(2.25rem, 4.5vw, 3rem)',
+          fontFamily: '"Inter", system-ui, sans-serif',
+          fontWeight: 900,
+          fontSize: 'clamp(2.75rem, 5.5vw, 3.8rem)',
           lineHeight: 1.05,
-          margin: '0 0 1rem',
+          margin: '0 0 1.25rem',
           color: C.text,
-          letterSpacing: '-0.02em',
+          letterSpacing: '-0.035em',
         }}
       >
         <span style={{ color: C.accent }}>$BASE</span> Airdrop Calculator
       </h1>
       <p
         style={{
-          fontSize: '0.95rem',
+          fontSize: '1.05rem',
           color: C.textMute,
           lineHeight: 1.55,
           margin: '0 0 1rem',
           maxWidth: 380,
         }}
       >
-        Enter any wallet address or basename to estimate a hypothetical $BASE airdrop  scored against patterns from the Arbitrum, Optimism, zkSync, and LayerZero drops, applied to your Base mainnet activity.
+        Enter any wallet address or basename to estimate a hypothetical $BASE airdrop scored against patterns from the Arbitrum, Optimism, zkSync, and LayerZero drops, applied to your Base mainnet activity.
       </p>
     </div>
   )
@@ -1381,8 +1414,29 @@ function ShareResult({
   shortAddr: (a: string) => string
 }) {
   const cardRef = useRef<HTMLDivElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState<'copy' | 'download' | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+
+  // Card is rendered at a FIXED 1023x537 (pixel-perfect for html2canvas) and
+  // visually scaled to fit the column. ResizeObserver keeps the scale in sync
+  // with the wrapper's actual width.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const wrapper = wrapperRef.current
+    const card = cardRef.current
+    if (!wrapper || !card) return
+    const apply = () => {
+      const w = wrapper.clientWidth
+      const scale = Math.min(1, w / 1023)
+      card.style.transform = `scale(${scale})`
+      wrapper.style.height = `${537 * scale}px`
+    }
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(wrapper)
+    return () => ro.disconnect()
+  }, [])
 
   // Handle priority:
   //   1. The wallet's primary .base.eth name (if the L1 reverse-resolver found one)
@@ -1410,12 +1464,32 @@ function ShareResult({
   const captureCanvas = async () => {
     if (!cardRef.current) return null
     const { default: html2canvas } = await import('html2canvas')
-    return html2canvas(cardRef.current, {
-      backgroundColor: null,
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    })
+    // Clone the card offscreen, unscaled — so the visible UI never shifts
+    // during capture, and html2canvas reads it at full 1023x537.
+    const original = cardRef.current
+    const clone = original.cloneNode(true) as HTMLDivElement
+    clone.style.transform = 'none'
+    clone.style.position = 'fixed'
+    clone.style.top = '0'
+    clone.style.left = '-99999px'
+    clone.style.pointerEvents = 'none'
+    clone.style.margin = '0'
+    document.body.appendChild(clone)
+    // Wait a frame so the clone is laid out + images are decoded
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    try {
+      return await html2canvas(clone, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        width: 1023,
+        height: 537,
+      })
+    } finally {
+      document.body.removeChild(clone)
+    }
   }
 
   const downloadImage = async () => {
@@ -1453,7 +1527,7 @@ function ShareResult({
           ])
           showToast('Copied to clipboard')
         } catch {
-          showToast('Clipboard blocked — use Download')
+          showToast('Clipboard blocked, use Download')
         } finally {
           setBusy(null)
         }
@@ -1479,169 +1553,232 @@ function ShareResult({
         SHARE YOUR RESULT
       </div>
 
-      {/* The card itself — white background so it shares cleanly on any feed */}
-      <div
-        ref={cardRef}
-        style={{
-          background: eligible
-            ? 'linear-gradient(135deg, #eef4ff 0%, #ffffff 50%, #f5f0ff 100%)'
-            : 'linear-gradient(135deg, #fff5f5 0%, #ffffff 50%, #fff7ed 100%)',
-          borderRadius: 20,
-          padding: '1.4rem 1.5rem',
-          color: '#0a0a0c',
-          fontFamily: '"Inter", system-ui, sans-serif',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
-          border: eligible ? '1px solid rgba(0,82,255,0.15)' : '1px solid rgba(239,68,68,0.2)',
-        }}
-      >
+      {/* Fixed 1023x537 card — pixel-perfect so html2canvas captures exactly
+          what the user sees. Wrapper handles responsive scaling. */}
+      <div ref={wrapperRef} style={{ width: '100%', overflow: 'hidden' }}>
         <div
+          ref={cardRef}
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '0.9rem',
-            gap: 10,
-            flexWrap: 'wrap',
+            width: 1023,
+            height: 537,
+            transformOrigin: 'top left',
+            background: eligible
+              ? 'linear-gradient(135deg, #eef4ff 0%, #ffffff 50%, #f5f0ff 100%)'
+              : 'linear-gradient(135deg, #fff5f5 0%, #ffffff 50%, #fff7ed 100%)',
+            borderRadius: 24,
+            color: '#0a0a0c',
+            fontFamily: '"Inter", system-ui, sans-serif',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
+            border: eligible
+              ? '1px solid rgba(0,82,255,0.15)'
+              : '1px solid rgba(239,68,68,0.2)',
+            position: 'relative',
+            boxSizing: 'border-box',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <img src="/base-logo.png" alt="Base" width={26} height={26} />
-            <span
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 800,
-                letterSpacing: '0.12em',
-                color: '#0a0a0c',
-              }}
-            >
-              BASE AIRDROP CALCULATOR
-            </span>
-          </div>
+          {/* Flexbox column layout — no absolute positioning so elements can never overlap */}
           <div
             style={{
-              padding: '0.35rem 0.8rem',
-              background: 'rgba(0,82,255,0.06)',
-              border: '1px solid rgba(0,82,255,0.18)',
-              borderRadius: 999,
-              fontSize: '0.78rem',
-              fontFamily: 'monospace',
-              color: '#0a0a0c',
-              maxWidth: 220,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              width: '100%',
+              height: '100%',
+              padding: '40px 56px 24px',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            {handle}
-          </div>
-        </div>
-
-        <div
-          style={{
-            fontSize: eligible ? 'clamp(2.4rem, 7vw, 3.6rem)' : 'clamp(2rem, 5.5vw, 2.8rem)',
-            fontWeight: 800,
-            color: eligible ? '#16a34a' : '#dc2626',
-            fontFamily: '"Lora", Georgia, serif',
-            letterSpacing: '-0.02em',
-            lineHeight: 1,
-            margin: '0.4rem 0 0.4rem',
-          }}
-        >
-          {eligible ? usd : 'Ahh, Shoot! 😅'}
-        </div>
-        {!eligible && (
-          <div
-            style={{
-              fontSize: '0.85rem',
-              color: '#6b7280',
-              lineHeight: 1.4,
-              marginBottom: '0.9rem',
-            }}
-          >
-            No bag this time go do something onchain on Base, then come back.
-          </div>
-        )}
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: '0.75rem',
-          }}
-        >
-          {eligible ? (
+            {/* Row 1: title left, basename pill right */}
             <div
               style={{
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
-                gap: 8,
-                padding: '0.5rem 0.9rem',
-                background: 'rgba(255,255,255,0.7)',
-                border: '1px solid rgba(0,82,255,0.15)',
-                borderRadius: 999,
+                justifyContent: 'space-between',
+                gap: 16,
               }}
             >
-              <img src="/base-logo.png" alt="" width={20} height={20} />
-              <span style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: '0.95rem' }}>
-                {tokens}
-              </span>
-              <span style={{ color: '#6b7280', fontWeight: 700, fontSize: '0.85rem' }}>$BASE</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+                <img src="/base-logo.png" alt="Base" width={48} height={48} />
+                <span
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 800,
+                    letterSpacing: '0.13em',
+                    color: '#0a0a0c',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  BASE AIRDROP CALCULATOR
+                </span>
+              </div>
+              <div
+                style={{
+                  padding: '12px 24px',
+                  background: 'rgba(0,82,255,0.06)',
+                  border: '1px solid rgba(0,82,255,0.18)',
+                  borderRadius: 999,
+                  fontSize: 22,
+                  fontFamily: 'monospace',
+                  color: '#0a0a0c',
+                  maxWidth: 340,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                {handle}
+              </div>
             </div>
-          ) : (
+
+            {/* Row 2: Big USD figure (flex-grow centered) */}
             <div
               style={{
-                fontSize: '0.78rem',
-                color: '#9ca3af',
-                fontStyle: 'italic',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                minHeight: 0,
               }}
             >
-              0 $BASE — empty bag
+              {/* Big hero: $BASE allocation (the focus) */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 18,
+                  fontSize: eligible ? 140 : 100,
+                  fontWeight: 900,
+                  color: eligible ? '#16a34a' : '#dc2626',
+                  fontFamily: '"Inter", system-ui, sans-serif',
+                  letterSpacing: '-0.045em',
+                  lineHeight: 1,
+                }}
+              >
+                {eligible ? (
+                  <>
+                    <img
+                      src="/base-logo.png"
+                      alt=""
+                      width={110}
+                      height={110}
+                      style={{ flexShrink: 0 }}
+                    />
+                    <span>{tokens}</span>
+                    <span style={{ fontSize: 56, color: '#374151', fontWeight: 800 }}>
+                      $BASE
+                    </span>
+                  </>
+                ) : (
+                  'Ahh, Shoot! 😅'
+                )}
+              </div>
+              {!eligible && (
+                <div
+                  style={{
+                    fontSize: 22,
+                    color: '#6b7280',
+                    lineHeight: 1.4,
+                    marginTop: 16,
+                  }}
+                >
+                  No bag this time. Go do something onchain on Base, then come back.
+                </div>
+              )}
             </div>
-          )}
-          <div
-            style={{
-              padding: '0.4rem 0.85rem',
-              background: 'rgba(255,255,255,0.7)',
-              border: '1px solid rgba(0,82,255,0.15)',
-              borderRadius: 999,
-              fontSize: '0.78rem',
-              fontFamily: 'monospace',
-              color: '#0a0a0c',
-              fontWeight: 600,
-            }}
-          >
-            Score {result.totalScore} / {result.maxScore}
-          </div>
-        </div>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            fontSize: '0.72rem',
-            color: '#6b7280',
-            marginTop: '0.9rem',
-            paddingTop: '0.7rem',
-            borderTop: '1px solid rgba(0,0,0,0.06)',
-          }}
-        >
-          <img
-            src="/fashaking.png"
-            alt=""
-            width={18}
-            height={18}
-            crossOrigin="anonymous"
-            style={{ borderRadius: '50%' }}
-          />
-          <span>Built by</span>
-          <span style={{ fontWeight: 700, color: '#0a0a0c' }}>@fashaking</span>
-          <span style={{ color: '#a3a3a3' }}>·</span>
-          <span>hypothetical estimate</span>
+            {/* Row 3: USD value pill left, score right */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                marginBottom: 8,
+              }}
+            >
+              {eligible ? (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'baseline',
+                    gap: 10,
+                    padding: '18px 30px',
+                    background: 'rgba(255,255,255,0.92)',
+                    border: '1px solid rgba(22,163,74,0.25)',
+                    borderRadius: 999,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: '#6b7280',
+                      fontWeight: 700,
+                      fontSize: 22,
+                    }}
+                  >
+                    ≈
+                  </span>
+                  <span
+                    style={{
+                      fontWeight: 900,
+                      fontFamily: '"Inter", system-ui, sans-serif',
+                      fontSize: 36,
+                      color: '#16a34a',
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    {usd}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ fontSize: 22, color: '#9ca3af', fontStyle: 'italic' }}>
+                  0 $BASE, empty bag
+                </div>
+              )}
+              <div
+                style={{
+                  padding: '18px 28px',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '1px solid rgba(0,82,255,0.18)',
+                  borderRadius: 999,
+                  fontSize: 24,
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
+                  color: '#0a0a0c',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Score {result.totalScore} / {result.maxScore}
+              </div>
+            </div>
+
+            {/* Row 4: attribution footer */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                fontSize: 19,
+                color: '#6b7280',
+                paddingTop: 16,
+                borderTop: '1px solid rgba(0,0,0,0.06)',
+              }}
+            >
+              <img
+                src="/fashaking.png"
+                alt=""
+                width={28}
+                height={28}
+                crossOrigin="anonymous"
+                style={{ borderRadius: '50%' }}
+              />
+              <span>Built by</span>
+              <span style={{ fontWeight: 700, color: '#0a0a0c' }}>@fashaking</span>
+              <span style={{ color: '#a3a3a3' }}>·</span>
+              <span>hypothetical estimate</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1738,12 +1875,12 @@ function CalculatingPanel() {
         <div>
           <div
             style={{
-              fontFamily: '"Lora", Georgia, serif',
+              fontFamily: '"Inter", system-ui, sans-serif',
               fontSize: 'clamp(1.8rem, 4vw, 2.4rem)',
-              fontWeight: 500,
+              fontWeight: 800,
               lineHeight: 1,
               color: C.text,
-              letterSpacing: '-0.02em',
+              letterSpacing: '-0.03em',
             }}
           >
             Calculating
