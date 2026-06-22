@@ -636,12 +636,19 @@ function ResultPanel({
       <div
         style={{
           display: 'flex',
-          alignItems: 'baseline',
+          alignItems: 'center',
           gap: 14,
           marginBottom: '1.5rem',
           flexWrap: 'wrap',
         }}
       >
+        <img
+          src="/base-logo.png"
+          alt=""
+          width={56}
+          height={56}
+          style={{ flexShrink: 0 }}
+        />
         <span
           style={{
             fontSize: 'clamp(3rem, 6vw, 4.5rem)',
@@ -1638,7 +1645,7 @@ function ShareResult({
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'baseline',
+                  alignItems: 'center',
                   gap: 18,
                   fontSize: eligible ? 140 : 100,
                   fontWeight: 900,
@@ -1650,6 +1657,13 @@ function ShareResult({
               >
                 {eligible ? (
                   <>
+                    <img
+                      src="/base-logo.png"
+                      alt=""
+                      width={110}
+                      height={110}
+                      style={{ flexShrink: 0 }}
+                    />
                     <span>{tokens}</span>
                     <span style={{ fontSize: 56, color: '#374151', fontWeight: 800 }}>
                       $BASE
