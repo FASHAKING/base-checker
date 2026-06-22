@@ -635,38 +635,64 @@ function ResultPanel({
       </div>
       <div
         style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '0.75rem 1.35rem',
-          background: C.panel,
-          border: `1px solid ${C.border}`,
-          borderRadius: 999,
-          marginBottom: '1.75rem',
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 14,
+          marginBottom: '1.5rem',
+          flexWrap: 'wrap',
         }}
       >
-        <img src="/base-logo.png" alt="" width={28} height={28} />
-        <span style={{ fontWeight: 800, fontSize: '1.35rem', fontFamily: 'monospace', color: C.text }}>
+        <span
+          style={{
+            fontSize: 'clamp(3rem, 6vw, 4.5rem)',
+            fontWeight: 900,
+            color: eligible ? C.green : '#fca5a5',
+            fontFamily: '"Inter", system-ui, sans-serif',
+            letterSpacing: '-0.04em',
+            lineHeight: 1,
+          }}
+        >
           {Math.round(estimate.userTokens).toLocaleString('en-US')}
         </span>
-        <span style={{ color: C.textMute, fontWeight: 700, fontSize: '1.1rem' }}>$BASE</span>
+        <span
+          style={{
+            fontSize: 'clamp(1.4rem, 2.5vw, 2rem)',
+            fontWeight: 800,
+            color: C.textMute,
+            letterSpacing: '0.02em',
+          }}
+        >
+          $BASE
+        </span>
       </div>
 
-      <div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 8 }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 10 }}>
         ESTIMATED VALUE
       </div>
       <div
         style={{
-          fontSize: 'clamp(2.8rem, 5.5vw, 4rem)',
-          fontWeight: 900,
-          color: eligible ? C.green : '#fca5a5',
-          fontFamily: '"Inter", system-ui, sans-serif',
-          letterSpacing: '-0.04em',
-          marginBottom: '1.5rem',
-          lineHeight: 1,
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          gap: 8,
+          padding: '0.85rem 1.5rem',
+          background: C.panel,
+          border: `1px solid ${eligible ? 'rgba(74,222,128,0.3)' : C.border}`,
+          borderRadius: 999,
+          marginBottom: '1.25rem',
         }}
       >
-        ${Math.round(estimate.userUsd).toLocaleString('en-US')}
+        <span style={{ color: C.textMute, fontWeight: 700, fontSize: '1.1rem' }}>≈</span>
+        <span
+          style={{
+            fontWeight: 900,
+            fontSize: '1.75rem',
+            color: eligible ? C.green : '#fca5a5',
+            fontFamily: '"Inter", system-ui, sans-serif',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          ${Math.round(estimate.userUsd).toLocaleString('en-US')}
+        </span>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
@@ -1608,9 +1634,13 @@ function ShareResult({
                 minHeight: 0,
               }}
             >
+              {/* Big hero: $BASE allocation (the focus) */}
               <div
                 style={{
-                  fontSize: eligible ? 160 : 100,
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: 18,
+                  fontSize: eligible ? 140 : 100,
                   fontWeight: 900,
                   color: eligible ? '#16a34a' : '#dc2626',
                   fontFamily: '"Inter", system-ui, sans-serif',
@@ -1618,7 +1648,16 @@ function ShareResult({
                   lineHeight: 1,
                 }}
               >
-                {eligible ? usd : 'Ahh, Shoot! 😅'}
+                {eligible ? (
+                  <>
+                    <span>{tokens}</span>
+                    <span style={{ fontSize: 56, color: '#374151', fontWeight: 800 }}>
+                      $BASE
+                    </span>
+                  </>
+                ) : (
+                  'Ahh, Shoot! 😅'
+                )}
               </div>
               {!eligible && (
                 <div
@@ -1634,7 +1673,7 @@ function ShareResult({
               )}
             </div>
 
-            {/* Row 3: token pill left, score right */}
+            {/* Row 3: USD value pill left, score right */}
             <div
               style={{
                 display: 'flex',
@@ -1648,27 +1687,33 @@ function ShareResult({
                 <div
                   style={{
                     display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 14,
-                    padding: '16px 26px',
+                    alignItems: 'baseline',
+                    gap: 10,
+                    padding: '18px 30px',
                     background: 'rgba(255,255,255,0.92)',
-                    border: '1px solid rgba(0,82,255,0.18)',
+                    border: '1px solid rgba(22,163,74,0.25)',
                     borderRadius: 999,
                   }}
                 >
-                  <img src="/base-logo.png" alt="" width={34} height={34} />
                   <span
                     style={{
-                      fontWeight: 800,
-                      fontFamily: 'monospace',
-                      fontSize: 30,
-                      color: '#0a0a0c',
+                      color: '#6b7280',
+                      fontWeight: 700,
+                      fontSize: 22,
                     }}
                   >
-                    {tokens}
+                    ≈
                   </span>
-                  <span style={{ color: '#374151', fontWeight: 800, fontSize: 22 }}>
-                    $BASE
+                  <span
+                    style={{
+                      fontWeight: 900,
+                      fontFamily: '"Inter", system-ui, sans-serif',
+                      fontSize: 36,
+                      color: '#16a34a',
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    {usd}
                   </span>
                 </div>
               ) : (
