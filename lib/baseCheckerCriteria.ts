@@ -31,6 +31,7 @@ export const CRITERIA: Criterion[] = [
       { label: '5+ txs', threshold: 5, points: 1 },
       { label: '25+ txs', threshold: 25, points: 2 },
       { label: '100+ txs', threshold: 100, points: 3 },
+      { label: '500+ txs', threshold: 500, points: 4 },
     ],
   },
   {
@@ -43,6 +44,7 @@ export const CRITERIA: Criterion[] = [
       { label: '2+ months', threshold: 2, points: 1 },
       { label: '6+ months', threshold: 6, points: 2 },
       { label: '12+ months', threshold: 12, points: 3 },
+      { label: '18+ months', threshold: 18, points: 4 },
     ],
   },
   {
@@ -67,6 +69,7 @@ export const CRITERIA: Criterion[] = [
       { label: '0.01+ ETH', threshold: 0.01, points: 1 },
       { label: '0.1+ ETH', threshold: 0.1, points: 2 },
       { label: '1+ ETH', threshold: 1, points: 3 },
+      { label: '2+ ETH', threshold: 2, points: 4 },
     ],
   },
   {
@@ -125,19 +128,6 @@ export const BONUS_CRITERIA: Criterion[] = [
       { label: 'Smart wallet detected', threshold: 1, points: 1 },
       { label: 'Smart wallet + active (≥5 txs)', threshold: 2, points: 2 },
       { label: 'Smart wallet + heavy use (≥25 txs)', threshold: 3, points: 3 },
-    ],
-  },
-  {
-    id: 'mini_app_usage',
-    name: 'Base mini app engagement',
-    category: 'breadth',
-    description:
-      'Distinct mini apps from the curated registry that this wallet (or its linked Smart Wallet) has interacted with.',
-    inspiredBy: ['Base mini app platform', 'zkSync breadth bonus (unique protocols)'],
-    tiers: [
-      { label: '1+ mini app', threshold: 1, points: 1 },
-      { label: '3+ mini apps', threshold: 3, points: 2 },
-      { label: '5+ mini apps', threshold: 5, points: 3 },
     ],
   },
   {
