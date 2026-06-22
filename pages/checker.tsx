@@ -544,6 +544,7 @@ export default function CheckerPage() {
           Hypothetical calculator. Not affiliated with Base, Coinbase, or any token issuer.
           <br />
           Scoring mirrors public eligibility patterns from the Arbitrum, Optimism, zkSync, and LayerZero airdrops.
+          <BuiltByFashaking />
         </div>
         </div>
       </div>
@@ -1285,6 +1286,50 @@ function PresetChip({
   )
 }
 
+function BuiltByFashaking() {
+  return (
+    <div
+      style={{
+        marginTop: 18,
+        paddingTop: 14,
+        borderTop: `1px solid ${C.borderSoft}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        fontSize: '0.78rem',
+        color: C.textMute,
+      }}
+    >
+      <span>Built with</span>
+      <span style={{ color: '#ef4444' }}>❤️</span>
+      <span>for the Base community by</span>
+      <a
+        href="https://x.com/fashaking3"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          color: C.text,
+          fontWeight: 700,
+          textDecoration: 'none',
+        }}
+      >
+        <img
+          src="/fashaking.png"
+          alt=""
+          width={22}
+          height={22}
+          style={{ borderRadius: '50%', border: `1px solid ${C.border}` }}
+        />
+        <span>fashaking</span>
+      </a>
+    </div>
+  )
+}
+
 function ShareResult({
   result,
   estimate,
@@ -1298,7 +1343,12 @@ function ShareResult({
   const [busy, setBusy] = useState<'copy' | 'download' | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
-  const handle = result.resolvedFrom || shortAddr(result.address)
+  // Handle priority:
+  //   1. The wallet's primary .base.eth name (if the L1 reverse-resolver found one)
+  //   2. Whatever name the user typed into the search box (if they typed one)
+  //   3. Shortened 0x address
+  const handle =
+    result.basename?.name || result.resolvedFrom || shortAddr(result.address)
   const tokens = Math.round(estimate.userTokens).toLocaleString('en-US')
   const usd = '$' + Math.round(estimate.userUsd).toLocaleString('en-US')
   const tweetText = encodeURIComponent(
@@ -1497,8 +1547,31 @@ function ShareResult({
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', fontSize: '0.72rem', color: '#6b7280', marginTop: '0.6rem' }}>
-          base-checker · hypothetical estimate
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            fontSize: '0.72rem',
+            color: '#6b7280',
+            marginTop: '0.9rem',
+            paddingTop: '0.7rem',
+            borderTop: '1px solid rgba(0,0,0,0.06)',
+          }}
+        >
+          <img
+            src="/fashaking.png"
+            alt=""
+            width={18}
+            height={18}
+            crossOrigin="anonymous"
+            style={{ borderRadius: '50%' }}
+          />
+          <span>Built by</span>
+          <span style={{ fontWeight: 700, color: '#0a0a0c' }}>@fashaking</span>
+          <span style={{ color: '#a3a3a3' }}>·</span>
+          <span>hypothetical estimate</span>
         </div>
       </div>
 

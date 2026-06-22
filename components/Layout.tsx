@@ -71,6 +71,45 @@ export function Layout({ children, title = "Base Airdrop Checker" }: LayoutProps
         }}
       >
         Base Airdrop Checker — scoring rubric blended from ARB, OP, ZK, ZRO airdrops
+        <div
+          style={{
+            marginTop: 10,
+            paddingTop: 10,
+            borderTop: "1px solid #f3f4f6",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            fontSize: "0.78rem",
+            color: "#6b7280",
+          }}
+        >
+          <span>Built with</span>
+          <span style={{ color: "#ef4444" }}>❤️</span>
+          <span>for the Base community by</span>
+          <a
+            href="https://x.com/fashaking3"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              color: "#1a1a1a",
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            <img
+              src="/fashaking.png"
+              alt=""
+              width={22}
+              height={22}
+              style={{ borderRadius: "50%", border: "1px solid #e5e7eb" }}
+            />
+            <span>fashaking</span>
+          </a>
+        </div>
       </div>
     </div>
   );
