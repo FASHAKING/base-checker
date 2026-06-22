@@ -624,8 +624,8 @@ function ResultPanel({
             maxWidth: 340,
           }}
         >
-          No bag this time. Your wallet hasn't earned its $BASE stripes yet. Go bridge, swap,
-          mint, do something onchain, then come back and check.
+          No bag this time, your wallet hasn't earned its $BASE stripes yet. Go bridge, swap,
+          mint, do something onchain then come back and check.
         </p>
       )}
       {eligible && <div style={{ marginBottom: '1.25rem' }} />}
@@ -800,7 +800,7 @@ function IntroPanel() {
           maxWidth: 380,
         }}
       >
-        Enter any wallet address or basename to estimate a hypothetical $BASE airdrop, scored against patterns from the Arbitrum, Optimism, zkSync, and LayerZero drops, applied to your Base mainnet activity.
+        Enter any wallet address or basename to estimate a hypothetical $BASE airdrop scored against patterns from the Arbitrum, Optimism, zkSync, and LayerZero drops, applied to your Base mainnet activity.
       </p>
     </div>
   )
@@ -834,7 +834,7 @@ function CriteriaList({
         }}
       >
         <span style={{ color: C.gold, fontWeight: 700 }}>💡 No wallet connect needed.</span>{' '}
-        For <strong>Base Verify Identity</strong>, you can toggle the tiers below yourself if they apply to you. Your score and allocation update instantly.
+        For <strong>Base Verify Identity</strong>, you can toggle the tiers below yourself if they apply to you, your score and allocation update instantly.
       </div>
       {CRITERIA.map((c) => (
         <CriterionRow
