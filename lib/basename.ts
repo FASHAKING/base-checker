@@ -39,9 +39,16 @@ const baseClient = createPublicClient({
   }),
 })
 
-// Base Reverse Resolver (resolves a wallet's primary basename on Base L2).
-// This is part of Coinbase's deployed Basenames system on Base mainnet.
-const BASE_L2_REVERSE_RESOLVER = '0x79EA96012eEa67A83431F1701B3dFf7e37F9E282' as const
+// Basenames L2 Resolver and Reverse Registrar addresses on Base mainnet.
+// We try both because different Basenames deployment generations stored the
+// reverse name in different contracts. Whichever returns first wins.
+//
+//   L2Resolver        — stores both forward (addr) AND reverse (name) records
+//   ReverseRegistrar  — where users call setName(); forwards to L2Resolver
+const BASE_L2_RESOLVER_CANDIDATES: `0x${string}`[] = [
+  '0xC6d566A56A1aFf6508b41f6c90ff131615583BCD', // L2 Resolver
+  '0x79EA96012eEa67A83431F1701B3dFf7e37F9E282', // Reverse Registrar
+]
 
 const REVERSE_RESOLVER_ABI = [
   {
@@ -142,18 +149,47 @@ export async function lookupBasename(address: `0x${string}`): Promise<BasenameIn
     // fall through to Base L2
   }
 
-  // Path 2: Direct query of the Base L2 Reverse Resolver. Only run if L1
-  // didn't give us a .base.eth name already.
+  // Path 2 alt: Coinbase's public Basenames API. Cheap, no contract calls,
+  // and respects the user's actual "Set as Primary" action on base.org.
+  if (!info.hasBasename) {
+    try {
+      const res = await fetch(
+        `https://www.base.org/api/basenames/${address.toLowerCase()}`,
+        { headers: { Accept: 'application/json' } },
+      )
+      if (res.ok) {
+        const data = (await res.json()) as { name?: string; basename?: string }
+        const name = data?.basename || data?.name
+        if (name) applyName(info, name)
+      }
+    } catch {
+      // network blocked or endpoint changed; fall through to direct contract call
+    }
+  }
+
+  // Path 3: Direct query of the Base L2 Resolver / Reverse Registrar.
+  // Try each candidate; first non-empty .base.eth wins. Done even when L1
+  // returned a non-base name, because L1 primary and Base primary are
+  // separate records (setting one does NOT update the other).
   if (!info.hasBasename) {
     try {
       const node = buildReverseNode(address)
-      const name = (await baseClient.readContract({
-        address: BASE_L2_REVERSE_RESOLVER,
-        abi: REVERSE_RESOLVER_ABI,
-        functionName: 'name',
-        args: [node],
-      })) as string
-      if (name && name.length > 0) applyName(info, name)
+      for (const contract of BASE_L2_RESOLVER_CANDIDATES) {
+        try {
+          const name = (await baseClient.readContract({
+            address: contract,
+            abi: REVERSE_RESOLVER_ABI,
+            functionName: 'name',
+            args: [node],
+          })) as string
+          if (name && name.length > 0) {
+            applyName(info, name)
+            if (info.hasBasename) break
+          }
+        } catch {
+          // try next candidate
+        }
+      }
     } catch {
       // graceful fail; basename bonus simply skipped
     }
