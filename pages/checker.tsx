@@ -398,7 +398,9 @@ export default function CheckerPage() {
         >
           {/* LEFT: result / intro + economics */}
           <div>
-            {displayResult && estimate ? (
+            {isLoading ? (
+              <CalculatingPanel />
+            ) : displayResult && estimate ? (
               <ResultPanel
                 result={displayResult}
                 estimate={estimate}
@@ -516,7 +518,9 @@ export default function CheckerPage() {
 
           {/* RIGHT: criteria with sub-bullets per tier */}
           <div>
-            {displayResult ? (
+            {isLoading ? (
+              <CalculatingPanelRight />
+            ) : displayResult ? (
               <CriteriaList
                 result={displayResult}
                 identityTiers={identityTiers}
@@ -554,6 +558,28 @@ export default function CheckerPage() {
         @media (max-width: 760px) {
           .checker-grid { grid-template-columns: 1fr !important; gap: 2.5rem !important; }
         }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes shimmer {
+          0% { background-position: 200% 0; opacity: 0.6; }
+          50% { opacity: 1; }
+          100% { background-position: -200% 0; opacity: 0.6; }
+        }
+        @keyframes calcDots {
+          0%, 20% { content: ''; }
+          40% { content: '.'; }
+          60% { content: '..'; }
+          80%, 100% { content: '...'; }
+        }
+        .calc-dots::after {
+          content: '...';
+          display: inline-block;
+          animation: calcDots 1.4s steps(4, end) infinite;
+          width: 1.2em;
+          text-align: left;
+        }
       `}</style>
     </>
   )
@@ -581,13 +607,28 @@ function ResultPanel({
           fontWeight: 500,
           fontSize: 'clamp(2.5rem, 5vw, 3.6rem)',
           lineHeight: 1.0,
-          margin: '0 0 1.75rem',
-          color: C.text,
+          margin: '0 0 0.5rem',
+          color: eligible ? C.text : '#fca5a5',
           letterSpacing: '-0.02em',
         }}
       >
-        {eligible ? "You're Eligible!" : 'Not Eligible'}
+        {eligible ? "You're Eligible!" : 'Ahh, Shoot! 😅'}
       </h1>
+      {!eligible && (
+        <p
+          style={{
+            margin: '0 0 1.75rem',
+            fontSize: '0.9rem',
+            color: C.textMute,
+            lineHeight: 1.5,
+            maxWidth: 340,
+          }}
+        >
+          No bag this time — your wallet hasn't earned its $BASE stripes yet. Go bridge, swap,
+          mint, do something onchain — then come back and check.
+        </p>
+      )}
+      {eligible && <div style={{ marginBottom: '1.25rem' }} />}
 
       <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 8 }}>
         YOU WILL RECEIVE
@@ -1349,10 +1390,13 @@ function ShareResult({
   //   3. Shortened 0x address
   const handle =
     result.basename?.name || result.resolvedFrom || shortAddr(result.address)
+  const eligible = estimate.eligible
   const tokens = Math.round(estimate.userTokens).toLocaleString('en-US')
   const usd = '$' + Math.round(estimate.userUsd).toLocaleString('en-US')
   const tweetText = encodeURIComponent(
-    `I'm eligible for ${tokens} $BASE ≈ ${usd} (hypothetical).\n\nCheck yours:`,
+    eligible
+      ? `I'm eligible for ${tokens} $BASE ≈ ${usd} (hypothetical).\n\nCheck yours:`
+      : `Ahh, Shoot! 😅 Looks like I'm not on the hypothetical $BASE airdrop list.\n\nCheck yours:`,
   )
   const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(
     typeof window !== 'undefined' ? window.location.origin + '/checker' : 'https://base-checker.vercel.app/checker',
@@ -1439,13 +1483,15 @@ function ShareResult({
       <div
         ref={cardRef}
         style={{
-          background: 'linear-gradient(135deg, #eef4ff 0%, #ffffff 50%, #f5f0ff 100%)',
+          background: eligible
+            ? 'linear-gradient(135deg, #eef4ff 0%, #ffffff 50%, #f5f0ff 100%)'
+            : 'linear-gradient(135deg, #fff5f5 0%, #ffffff 50%, #fff7ed 100%)',
           borderRadius: 20,
           padding: '1.4rem 1.5rem',
           color: '#0a0a0c',
           fontFamily: '"Inter", system-ui, sans-serif',
           boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
-          border: '1px solid rgba(0,82,255,0.15)',
+          border: eligible ? '1px solid rgba(0,82,255,0.15)' : '1px solid rgba(239,68,68,0.2)',
         }}
       >
         <div
@@ -1492,17 +1538,29 @@ function ShareResult({
 
         <div
           style={{
-            fontSize: 'clamp(2.4rem, 7vw, 3.6rem)',
+            fontSize: eligible ? 'clamp(2.4rem, 7vw, 3.6rem)' : 'clamp(2rem, 5.5vw, 2.8rem)',
             fontWeight: 800,
-            color: '#16a34a',
+            color: eligible ? '#16a34a' : '#dc2626',
             fontFamily: '"Lora", Georgia, serif',
             letterSpacing: '-0.02em',
             lineHeight: 1,
-            margin: '0.4rem 0 0.9rem',
+            margin: '0.4rem 0 0.4rem',
           }}
         >
-          {usd}
+          {eligible ? usd : 'Ahh, Shoot! 😅'}
         </div>
+        {!eligible && (
+          <div
+            style={{
+              fontSize: '0.85rem',
+              color: '#6b7280',
+              lineHeight: 1.4,
+              marginBottom: '0.9rem',
+            }}
+          >
+            No bag this time — go do something onchain on Base, then come back.
+          </div>
+        )}
 
         <div
           style={{
@@ -1514,23 +1572,35 @@ function ShareResult({
             marginBottom: '0.75rem',
           }}
         >
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '0.5rem 0.9rem',
-              background: 'rgba(255,255,255,0.7)',
-              border: '1px solid rgba(0,82,255,0.15)',
-              borderRadius: 999,
-            }}
-          >
-            <img src="/base-logo.png" alt="" width={20} height={20} />
-            <span style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: '0.95rem' }}>
-              {tokens}
-            </span>
-            <span style={{ color: '#6b7280', fontWeight: 700, fontSize: '0.85rem' }}>$BASE</span>
-          </div>
+          {eligible ? (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '0.5rem 0.9rem',
+                background: 'rgba(255,255,255,0.7)',
+                border: '1px solid rgba(0,82,255,0.15)',
+                borderRadius: 999,
+              }}
+            >
+              <img src="/base-logo.png" alt="" width={20} height={20} />
+              <span style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: '0.95rem' }}>
+                {tokens}
+              </span>
+              <span style={{ color: '#6b7280', fontWeight: 700, fontSize: '0.85rem' }}>$BASE</span>
+            </div>
+          ) : (
+            <div
+              style={{
+                fontSize: '0.78rem',
+                color: '#9ca3af',
+                fontStyle: 'italic',
+              }}
+            >
+              0 $BASE — empty bag
+            </div>
+          )}
           <div
             style={{
               padding: '0.4rem 0.85rem',
@@ -1641,6 +1711,122 @@ function ShareResult({
           {toast}
         </div>
       )}
+    </div>
+  )
+}
+
+function CalculatingPanel() {
+  return (
+    <div style={{ paddingTop: '0.5rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          marginBottom: '1.5rem',
+        }}
+      >
+        <img
+          src="/base-logo.png"
+          alt=""
+          width={42}
+          height={42}
+          style={{
+            animation: 'spin 1.4s linear infinite',
+          }}
+        />
+        <div>
+          <div
+            style={{
+              fontFamily: '"Lora", Georgia, serif',
+              fontSize: 'clamp(1.8rem, 4vw, 2.4rem)',
+              fontWeight: 500,
+              lineHeight: 1,
+              color: C.text,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Calculating
+            <span className="calc-dots" />
+          </div>
+          <div style={{ fontSize: '0.8rem', color: C.textMute, marginTop: 6 }}>
+            Crunching onchain activity, basename, identity…
+          </div>
+        </div>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        {[80, 60, 70, 50].map((w, i) => (
+          <div
+            key={i}
+            style={{
+              height: 10,
+              width: `${w}%`,
+              background: `linear-gradient(90deg, ${C.borderSoft} 0%, ${C.border} 50%, ${C.borderSoft} 100%)`,
+              backgroundSize: '200% 100%',
+              borderRadius: 6,
+              animation: `shimmer 1.6s ease-in-out infinite`,
+              animationDelay: `${i * 0.15}s`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CalculatingPanelRight() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+        paddingTop: '0.5rem',
+      }}
+    >
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '0.95rem 0',
+            borderBottom: `1px solid ${C.borderSoft}`,
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              height: 12,
+              flex: 1,
+              maxWidth: 220,
+              background: `linear-gradient(90deg, ${C.borderSoft} 0%, ${C.border} 50%, ${C.borderSoft} 100%)`,
+              backgroundSize: '200% 100%',
+              borderRadius: 4,
+              animation: `shimmer 1.6s ease-in-out infinite`,
+              animationDelay: `${i * 0.1}s`,
+            }}
+          />
+          <div
+            style={{
+              height: 12,
+              width: 40,
+              background: `linear-gradient(90deg, ${C.borderSoft} 0%, ${C.border} 50%, ${C.borderSoft} 100%)`,
+              backgroundSize: '200% 100%',
+              borderRadius: 4,
+              animation: `shimmer 1.6s ease-in-out infinite`,
+              animationDelay: `${i * 0.1}s`,
+            }}
+          />
+        </div>
+      ))}
     </div>
   )
 }
