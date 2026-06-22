@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   CRITERIA,
   BONUS_CRITERIA,
@@ -197,7 +197,7 @@ export default function CheckerPage() {
       <Head>
         <title>$BASE Airdrop Calculator</title>
         <meta name="description" content="Check any Base mainnet wallet or basename against a unified airdrop eligibility rubric." />
-        <link rel="icon" href="/base-logo.svg" type="image/svg+xml" />
+        <link rel="icon" href="/base-logo.png" type="image/png" />
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap"
           rel="stylesheet"
@@ -266,7 +266,7 @@ export default function CheckerPage() {
             borderBottom: `1px solid ${C.borderSoft}`,
           }}
         >
-          <img src="/base-logo.svg" alt="Base" width={28} height={28} />
+          <img src="/base-logo.png" alt="Base" width={28} height={28} />
           <span
             style={{
               fontSize: '0.95rem',
@@ -603,7 +603,7 @@ function ResultPanel({
           marginBottom: '1.5rem',
         }}
       >
-        <img src="/base-logo.svg" alt="" width={22} height={22} />
+        <img src="/base-logo.png" alt="" width={22} height={22} />
         <span style={{ fontWeight: 800, fontSize: '1.1rem', fontFamily: 'monospace' }}>
           {Math.round(estimate.userTokens).toLocaleString('en-US')}
         </span>
@@ -693,6 +693,9 @@ function ResultPanel({
         Base score {baseScore} / {baseMax}
         {result.bonusScore > 0 && ` · Bonus +${result.bonusScore} / ${result.bonusMaxScore}`}
       </div>
+
+      {/* Share your result */}
+      <ShareResult result={result} estimate={estimate} shortAddr={shortAddr} />
     </div>
   )
 }
@@ -1279,5 +1282,292 @@ function PresetChip({
     >
       {label}
     </button>
+  )
+}
+
+function ShareResult({
+  result,
+  estimate,
+  shortAddr,
+}: {
+  result: Result
+  estimate: NonNullable<ReturnType<typeof estimateAllocation>>
+  shortAddr: (a: string) => string
+}) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [busy, setBusy] = useState<'copy' | 'download' | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  const handle = result.resolvedFrom || shortAddr(result.address)
+  const tokens = Math.round(estimate.userTokens).toLocaleString('en-US')
+  const usd = '$' + Math.round(estimate.userUsd).toLocaleString('en-US')
+  const tweetText = encodeURIComponent(
+    `I'm eligible for ${tokens} $BASE ≈ ${usd} (hypothetical).\n\nCheck yours:`,
+  )
+  const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(
+    typeof window !== 'undefined' ? window.location.origin + '/checker' : 'https://base-checker.vercel.app/checker',
+  )}`
+
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 2000)
+  }
+
+  const captureCanvas = async () => {
+    if (!cardRef.current) return null
+    const { default: html2canvas } = await import('html2canvas')
+    return html2canvas(cardRef.current, {
+      backgroundColor: null,
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    })
+  }
+
+  const downloadImage = async () => {
+    setBusy('download')
+    try {
+      const canvas = await captureCanvas()
+      if (!canvas) return
+      const link = document.createElement('a')
+      link.download = `base-airdrop-${handle.replace(/[^a-z0-9.-]/gi, '_')}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+      showToast('Downloaded')
+    } catch (err) {
+      console.error(err)
+      showToast('Download failed')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const copyImage = async () => {
+    setBusy('copy')
+    try {
+      const canvas = await captureCanvas()
+      if (!canvas) return
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          showToast('Copy failed')
+          setBusy(null)
+          return
+        }
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob }),
+          ])
+          showToast('Copied to clipboard')
+        } catch {
+          showToast('Clipboard blocked — use Download')
+        } finally {
+          setBusy(null)
+        }
+      }, 'image/png')
+    } catch (err) {
+      console.error(err)
+      showToast('Copy failed')
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div style={{ marginTop: '1.75rem' }}>
+      <div
+        style={{
+          fontSize: '0.65rem',
+          letterSpacing: '0.12em',
+          color: C.textMute,
+          fontWeight: 700,
+          marginBottom: 10,
+        }}
+      >
+        SHARE YOUR RESULT
+      </div>
+
+      {/* The card itself — white background so it shares cleanly on any feed */}
+      <div
+        ref={cardRef}
+        style={{
+          background: 'linear-gradient(135deg, #eef4ff 0%, #ffffff 50%, #f5f0ff 100%)',
+          borderRadius: 20,
+          padding: '1.4rem 1.5rem',
+          color: '#0a0a0c',
+          fontFamily: '"Inter", system-ui, sans-serif',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
+          border: '1px solid rgba(0,82,255,0.15)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '0.9rem',
+            gap: 10,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <img src="/base-logo.png" alt="Base" width={26} height={26} />
+            <span
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                letterSpacing: '0.12em',
+                color: '#0a0a0c',
+              }}
+            >
+              BASE AIRDROP CALCULATOR
+            </span>
+          </div>
+          <div
+            style={{
+              padding: '0.35rem 0.8rem',
+              background: 'rgba(0,82,255,0.06)',
+              border: '1px solid rgba(0,82,255,0.18)',
+              borderRadius: 999,
+              fontSize: '0.78rem',
+              fontFamily: 'monospace',
+              color: '#0a0a0c',
+              maxWidth: 220,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {handle}
+          </div>
+        </div>
+
+        <div
+          style={{
+            fontSize: 'clamp(2.4rem, 7vw, 3.6rem)',
+            fontWeight: 800,
+            color: '#16a34a',
+            fontFamily: '"Lora", Georgia, serif',
+            letterSpacing: '-0.02em',
+            lineHeight: 1,
+            margin: '0.4rem 0 0.9rem',
+          }}
+        >
+          {usd}
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 10,
+            flexWrap: 'wrap',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '0.5rem 0.9rem',
+              background: 'rgba(255,255,255,0.7)',
+              border: '1px solid rgba(0,82,255,0.15)',
+              borderRadius: 999,
+            }}
+          >
+            <img src="/base-logo.png" alt="" width={20} height={20} />
+            <span style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: '0.95rem' }}>
+              {tokens}
+            </span>
+            <span style={{ color: '#6b7280', fontWeight: 700, fontSize: '0.85rem' }}>$BASE</span>
+          </div>
+          <div
+            style={{
+              padding: '0.4rem 0.85rem',
+              background: 'rgba(255,255,255,0.7)',
+              border: '1px solid rgba(0,82,255,0.15)',
+              borderRadius: 999,
+              fontSize: '0.78rem',
+              fontFamily: 'monospace',
+              color: '#0a0a0c',
+              fontWeight: 600,
+            }}
+          >
+            Score {result.totalScore} / {result.maxScore}
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'center', fontSize: '0.72rem', color: '#6b7280', marginTop: '0.6rem' }}>
+          base-checker · hypothetical estimate
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+        <a
+          href={tweetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: '0.65rem 1.1rem',
+            background: '#0a0a0c',
+            color: 'white',
+            border: `1px solid ${C.border}`,
+            borderRadius: 999,
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            textDecoration: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Share on X →
+        </a>
+        <button
+          type="button"
+          onClick={copyImage}
+          disabled={busy === 'copy'}
+          style={{
+            padding: '0.65rem 1.1rem',
+            background: 'transparent',
+            color: C.text,
+            border: `1px solid ${C.border}`,
+            borderRadius: 999,
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            cursor: busy === 'copy' ? 'wait' : 'pointer',
+          }}
+        >
+          {busy === 'copy' ? 'Copying…' : 'Copy image'}
+        </button>
+        <button
+          type="button"
+          onClick={downloadImage}
+          disabled={busy === 'download'}
+          style={{
+            padding: '0.65rem 1.1rem',
+            background: 'transparent',
+            color: C.text,
+            border: `1px solid ${C.border}`,
+            borderRadius: 999,
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            cursor: busy === 'download' ? 'wait' : 'pointer',
+          }}
+        >
+          {busy === 'download' ? 'Saving…' : 'Download image'}
+        </button>
+      </div>
+      {toast && (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: '0.75rem',
+            color: C.green,
+          }}
+        >
+          {toast}
+        </div>
+      )}
+    </div>
   )
 }
