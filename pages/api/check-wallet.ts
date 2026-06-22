@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({
         error: input.includes('.')
           ? `Could not resolve "${input}". Is the name registered and pointing to an address?`
-          : 'Invalid address — expected 0x… or yourname.base.eth',
+          : 'Invalid address, expected 0x… or yourname.base.eth',
       })
     }
 

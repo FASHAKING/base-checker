@@ -27,13 +27,20 @@ export type AllocationParams = {
 
 export const DEFAULT_PARAMS: AllocationParams = {
   totalSupply: 10_000_000_000,
-  airdropPct: 0.10,
+  airdropPct: 0.25,
   fdvUsd: 3_000_000_000,
   floorTokens: 500,
   whaleAnchorTokens: 25_000,
   curveExponent: 1.5,
   farcasterBoostPct: 0.20,
 }
+
+// Anchor pool used to scale floor/cap proportionally. With defaults:
+//   anchorPool = 10B × 25% = 2.5B → floor 500 / cap 25,000
+// When the user changes supply or airdrop%, the effective floor and cap
+// scale by (currentPool / anchorPool) so allocations move in proportion
+// with the pool size, matching real-drop intuition.
+export const ANCHOR_POOL = DEFAULT_PARAMS.totalSupply * DEFAULT_PARAMS.airdropPct
 
 // Real-world anchor: top-tier users in past drops received roughly:
 //   ARB top: ~10,200 ARB × $1.40 = ~$14,000 (most top users got $3-6k)
@@ -103,9 +110,12 @@ export function estimateAllocation(
   const poolTokens = params.totalSupply * params.airdropPct
   const tokenPriceUsd = params.fdvUsd / params.totalSupply
   const poolUsd = poolTokens * tokenPriceUsd
-  // Cap/floor are token-denominated — USD is derived from FDV × supply.
-  const whaleAnchorTokens = params.whaleAnchorTokens
-  const floorTokens = params.floorTokens
+  // Scale floor/cap proportionally with pool size. If the user doubles
+  // supply or airdrop %, the pool doubles, so allocations double too.
+  // FDV changes only affect USD value, not token count.
+  const poolRatio = ANCHOR_POOL > 0 ? poolTokens / ANCHOR_POOL : 1
+  const whaleAnchorTokens = params.whaleAnchorTokens * poolRatio
+  const floorTokens = params.floorTokens * poolRatio
 
   // Farcaster boost: scales with how many Farcaster points the user earned (0..3 → 0..1).
   // Defaults to 1.0× when no FID provided or wallet not linked.

@@ -44,12 +44,12 @@ export async function lookupFarcaster(
 ): Promise<FarcasterLookupResult> {
   const fid = typeof fidRaw === 'string' ? parseInt(fidRaw, 10) : fidRaw
   if (!Number.isFinite(fid) || fid <= 0) {
-    return { ok: false, reason: 'Invalid FID — must be a positive integer.' }
+    return { ok: false, reason: 'Invalid FID. Must be a positive integer.' }
   }
   if (!config.neynarApiKey) {
     return {
       ok: false,
-      reason: 'NEYNAR_API_KEY not configured — Farcaster bonus skipped.',
+      reason: 'NEYNAR_API_KEY not configured. Farcaster bonus skipped.',
     }
   }
 
@@ -109,7 +109,7 @@ export function scoreFarcaster(
   if (!result.walletLinked) {
     return {
       value: 0,
-      display: `FID ${result.profile.fid} — NOT linked to this wallet (ignored)`,
+      display: `FID ${result.profile.fid}, NOT linked to this wallet (ignored)`,
     }
   }
 
