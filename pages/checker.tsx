@@ -206,12 +206,53 @@ export default function CheckerPage() {
 
       <div
         style={{
+          position: 'relative',
           minHeight: '100vh',
-          background: C.bg,
           color: C.text,
           fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
         }}
       >
+        {/* Background video — fixed, behind everything */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 0,
+            overflow: 'hidden',
+            background: C.bg,
+          }}
+        >
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              opacity: 0.35,
+            }}
+          >
+            <source src="/video/bg.mp4" type="video/mp4" />
+          </video>
+          {/* Tinted overlay for readability */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'linear-gradient(180deg, rgba(10,10,12,0.55) 0%, rgba(10,10,12,0.75) 50%, rgba(10,10,12,0.92) 100%)',
+            }}
+          />
+        </div>
+
+        {/* All content sits above the video */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
         {/* Top brand bar — centered */}
         <div
           style={{
@@ -503,6 +544,7 @@ export default function CheckerPage() {
           Hypothetical calculator. Not affiliated with Base, Coinbase, or any token issuer.
           <br />
           Scoring mirrors public eligibility patterns from the Arbitrum, Optimism, zkSync, and LayerZero airdrops.
+        </div>
         </div>
       </div>
 
