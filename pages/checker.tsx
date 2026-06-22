@@ -1431,23 +1431,31 @@ function ShareResult({
   const captureCanvas = async () => {
     if (!cardRef.current) return null
     const { default: html2canvas } = await import('html2canvas')
-    const card = cardRef.current
-    // Capture at the card's NATURAL 1023x537, not the displayed scaled size.
-    const originalTransform = card.style.transform
-    card.style.transform = 'scale(1)'
+    // Clone the card offscreen, unscaled — so the visible UI never shifts
+    // during capture, and html2canvas reads it at full 1023x537.
+    const original = cardRef.current
+    const clone = original.cloneNode(true) as HTMLDivElement
+    clone.style.transform = 'none'
+    clone.style.position = 'fixed'
+    clone.style.top = '0'
+    clone.style.left = '-99999px'
+    clone.style.pointerEvents = 'none'
+    clone.style.margin = '0'
+    document.body.appendChild(clone)
+    // Wait a frame so the clone is laid out + images are decoded
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
     try {
-      return await html2canvas(card, {
+      return await html2canvas(clone, {
         backgroundColor: null,
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
         width: 1023,
         height: 537,
-        windowWidth: 1023,
-        windowHeight: 537,
       })
     } finally {
-      card.style.transform = originalTransform
+      document.body.removeChild(clone)
     }
   }
 
@@ -1535,175 +1543,182 @@ function ShareResult({
             boxSizing: 'border-box',
           }}
         >
-          {/* Header — logo + title (left) and basename pill (right) */}
+          {/* Flexbox column layout — no absolute positioning so elements can never overlap */}
           <div
             style={{
-              position: 'absolute',
-              top: 44,
-              left: 56,
-              right: 56,
+              width: '100%',
+              height: '100%',
+              padding: '40px 56px 24px',
+              boxSizing: 'border-box',
               display: 'flex',
-              alignItems: 'center',
+              flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: 16,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
-              <img src="/base-logo.png" alt="Base" width={48} height={48} />
-              <span
+            {/* Row 1: title left, basename pill right */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+                <img src="/base-logo.png" alt="Base" width={48} height={48} />
+                <span
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 800,
+                    letterSpacing: '0.13em',
+                    color: '#0a0a0c',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  BASE AIRDROP CALCULATOR
+                </span>
+              </div>
+              <div
                 style={{
-                  fontSize: 28,
-                  fontWeight: 800,
-                  letterSpacing: '0.13em',
+                  padding: '12px 24px',
+                  background: 'rgba(0,82,255,0.06)',
+                  border: '1px solid rgba(0,82,255,0.18)',
+                  borderRadius: 999,
+                  fontSize: 22,
+                  fontFamily: 'monospace',
+                  color: '#0a0a0c',
+                  maxWidth: 340,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                {handle}
+              </div>
+            </div>
+
+            {/* Row 2: Big USD figure (flex-grow centered) */}
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                minHeight: 0,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: eligible ? 160 : 100,
+                  fontWeight: 900,
+                  color: eligible ? '#16a34a' : '#dc2626',
+                  fontFamily: '"Inter", system-ui, sans-serif',
+                  letterSpacing: '-0.045em',
+                  lineHeight: 1,
+                }}
+              >
+                {eligible ? usd : 'Ahh, Shoot! 😅'}
+              </div>
+              {!eligible && (
+                <div
+                  style={{
+                    fontSize: 22,
+                    color: '#6b7280',
+                    lineHeight: 1.4,
+                    marginTop: 16,
+                  }}
+                >
+                  No bag this time. Go do something onchain on Base, then come back.
+                </div>
+              )}
+            </div>
+
+            {/* Row 3: token pill left, score right */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                marginBottom: 8,
+              }}
+            >
+              {eligible ? (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '16px 26px',
+                    background: 'rgba(255,255,255,0.92)',
+                    border: '1px solid rgba(0,82,255,0.18)',
+                    borderRadius: 999,
+                  }}
+                >
+                  <img src="/base-logo.png" alt="" width={34} height={34} />
+                  <span
+                    style={{
+                      fontWeight: 800,
+                      fontFamily: 'monospace',
+                      fontSize: 30,
+                      color: '#0a0a0c',
+                    }}
+                  >
+                    {tokens}
+                  </span>
+                  <span style={{ color: '#374151', fontWeight: 800, fontSize: 22 }}>
+                    $BASE
+                  </span>
+                </div>
+              ) : (
+                <div style={{ fontSize: 22, color: '#9ca3af', fontStyle: 'italic' }}>
+                  0 $BASE, empty bag
+                </div>
+              )}
+              <div
+                style={{
+                  padding: '18px 28px',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '1px solid rgba(0,82,255,0.18)',
+                  borderRadius: 999,
+                  fontSize: 24,
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
                   color: '#0a0a0c',
                   whiteSpace: 'nowrap',
                 }}
               >
-                BASE AIRDROP CALCULATOR
-              </span>
+                Score {result.totalScore} / {result.maxScore}
+              </div>
             </div>
-            <div
-              style={{
-                padding: '12px 24px',
-                background: 'rgba(0,82,255,0.06)',
-                border: '1px solid rgba(0,82,255,0.18)',
-                borderRadius: 999,
-                fontSize: 22,
-                fontFamily: 'monospace',
-                color: '#0a0a0c',
-                maxWidth: 340,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-              }}
-            >
-              {handle}
-            </div>
-          </div>
 
-          {/* Big USD figure */}
-          <div
-            style={{
-              position: 'absolute',
-              top: eligible ? 155 : 190,
-              left: 56,
-              right: 56,
-              fontSize: eligible ? 170 : 110,
-              fontWeight: 900,
-              color: eligible ? '#16a34a' : '#dc2626',
-              fontFamily: '"Inter", system-ui, sans-serif',
-              letterSpacing: '-0.045em',
-              lineHeight: 1,
-            }}
-          >
-            {eligible ? usd : 'Ahh, Shoot! 😅'}
-          </div>
-          {!eligible && (
+            {/* Row 4: attribution footer */}
             <div
               style={{
-                position: 'absolute',
-                top: 320,
-                left: 56,
-                right: 56,
-                fontSize: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                fontSize: 19,
                 color: '#6b7280',
-                lineHeight: 1.4,
+                paddingTop: 16,
+                borderTop: '1px solid rgba(0,0,0,0.06)',
               }}
             >
-              No bag this time. Go do something onchain on Base, then come back.
+              <img
+                src="/fashaking.png"
+                alt=""
+                width={28}
+                height={28}
+                crossOrigin="anonymous"
+                style={{ borderRadius: '50%' }}
+              />
+              <span>Built by</span>
+              <span style={{ fontWeight: 700, color: '#0a0a0c' }}>@fashaking</span>
+              <span style={{ color: '#a3a3a3' }}>·</span>
+              <span>hypothetical estimate</span>
             </div>
-          )}
-
-          {/* Token pill — bottom-left */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 82,
-              left: 56,
-            }}
-          >
-            {eligible ? (
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  padding: '16px 26px',
-                  background: 'rgba(255,255,255,0.9)',
-                  border: '1px solid rgba(0,82,255,0.18)',
-                  borderRadius: 999,
-                }}
-              >
-                <img src="/base-logo.png" alt="" width={34} height={34} />
-                <span
-                  style={{
-                    fontWeight: 800,
-                    fontFamily: 'monospace',
-                    fontSize: 30,
-                    color: '#0a0a0c',
-                  }}
-                >
-                  {tokens}
-                </span>
-                <span style={{ color: '#374151', fontWeight: 800, fontSize: 22 }}>$BASE</span>
-              </div>
-            ) : (
-              <div style={{ fontSize: 22, color: '#9ca3af', fontStyle: 'italic' }}>
-                0 $BASE, empty bag
-              </div>
-            )}
-          </div>
-
-          {/* Score pill — bottom-right */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 82,
-              right: 56,
-              padding: '18px 28px',
-              background: 'rgba(255,255,255,0.9)',
-              border: '1px solid rgba(0,82,255,0.18)',
-              borderRadius: 999,
-              fontSize: 24,
-              fontFamily: 'monospace',
-              fontWeight: 700,
-              color: '#0a0a0c',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Score {result.totalScore} / {result.maxScore}
-          </div>
-
-          {/* Attribution footer — bottom-center */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 24,
-              left: 56,
-              right: 56,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              fontSize: 19,
-              color: '#6b7280',
-              paddingTop: 16,
-              borderTop: '1px solid rgba(0,0,0,0.06)',
-            }}
-          >
-            <img
-              src="/fashaking.png"
-              alt=""
-              width={28}
-              height={28}
-              crossOrigin="anonymous"
-              style={{ borderRadius: '50%' }}
-            />
-            <span>Built by</span>
-            <span style={{ fontWeight: 700, color: '#0a0a0c' }}>@fashaking</span>
-            <span style={{ color: '#a3a3a3' }}>·</span>
-            <span>hypothetical estimate</span>
           </div>
         </div>
       </div>
