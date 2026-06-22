@@ -199,7 +199,7 @@ export default function CheckerPage() {
         <meta name="description" content="Check any Base mainnet wallet or basename against a unified airdrop eligibility rubric." />
         <link rel="icon" href="/base-logo.png" type="image/png" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
           rel="stylesheet"
         />
       </Head>
@@ -603,13 +603,13 @@ function ResultPanel({
     <div>
       <h1
         style={{
-          fontFamily: '"Lora", Georgia, serif',
-          fontWeight: 500,
+          fontFamily: '"Inter", system-ui, sans-serif',
+          fontWeight: 900,
           fontSize: 'clamp(2.5rem, 5vw, 3.6rem)',
           lineHeight: 1.0,
           margin: '0 0 0.5rem',
+          letterSpacing: '-0.03em',
           color: eligible ? C.text : '#fca5a5',
-          letterSpacing: '-0.02em',
         }}
       >
         {eligible ? "You're Eligible!" : 'Ahh, Shoot! 😅'}
@@ -657,11 +657,11 @@ function ResultPanel({
       </div>
       <div
         style={{
-          fontSize: 'clamp(2rem, 4vw, 2.6rem)',
-          fontWeight: 800,
+          fontSize: 'clamp(2.2rem, 4.5vw, 3rem)',
+          fontWeight: 900,
           color: eligible ? C.green : '#fca5a5',
-          fontFamily: '"Lora", Georgia, serif',
-          letterSpacing: '-0.01em',
+          fontFamily: '"Inter", system-ui, sans-serif',
+          letterSpacing: '-0.035em',
           marginBottom: '1.25rem',
           lineHeight: 1,
         }}
@@ -747,13 +747,13 @@ function IntroPanel() {
     <div>
       <h1
         style={{
-          fontFamily: '"Lora", Georgia, serif',
-          fontWeight: 500,
+          fontFamily: '"Inter", system-ui, sans-serif',
+          fontWeight: 900,
           fontSize: 'clamp(2.25rem, 4.5vw, 3rem)',
           lineHeight: 1.05,
           margin: '0 0 1rem',
           color: C.text,
-          letterSpacing: '-0.02em',
+          letterSpacing: '-0.03em',
         }}
       >
         <span style={{ color: C.accent }}>$BASE</span> Airdrop Calculator
@@ -1486,32 +1486,48 @@ function ShareResult({
           background: eligible
             ? 'linear-gradient(135deg, #eef4ff 0%, #ffffff 50%, #f5f0ff 100%)'
             : 'linear-gradient(135deg, #fff5f5 0%, #ffffff 50%, #fff7ed 100%)',
-          borderRadius: 20,
-          padding: '1.4rem 1.5rem',
+          borderRadius: 24,
+          padding: '1.6rem 1.75rem',
           color: '#0a0a0c',
           fontFamily: '"Inter", system-ui, sans-serif',
           boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
           border: eligible ? '1px solid rgba(0,82,255,0.15)' : '1px solid rgba(239,68,68,0.2)',
         }}
       >
+        {/* Header row — title left, basename right; never wraps */}
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '0.9rem',
-            gap: 10,
-            flexWrap: 'wrap',
+            gap: 12,
+            marginBottom: '1.5rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <img src="/base-logo.png" alt="Base" width={26} height={26} />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            <img
+              src="/base-logo.png"
+              alt="Base"
+              width={28}
+              height={28}
+              style={{ flexShrink: 0 }}
+            />
             <span
               style={{
-                fontSize: '0.78rem',
+                fontSize: '0.85rem',
                 fontWeight: 800,
-                letterSpacing: '0.12em',
+                letterSpacing: '0.14em',
                 color: '#0a0a0c',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
               BASE AIRDROP CALCULATOR
@@ -1519,32 +1535,34 @@ function ShareResult({
           </div>
           <div
             style={{
-              padding: '0.35rem 0.8rem',
+              padding: '0.4rem 0.9rem',
               background: 'rgba(0,82,255,0.06)',
               border: '1px solid rgba(0,82,255,0.18)',
               borderRadius: 999,
               fontSize: '0.78rem',
               fontFamily: 'monospace',
               color: '#0a0a0c',
-              maxWidth: 220,
+              maxWidth: 200,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             {handle}
           </div>
         </div>
 
+        {/* Big USD figure */}
         <div
           style={{
-            fontSize: eligible ? 'clamp(2.4rem, 7vw, 3.6rem)' : 'clamp(2rem, 5.5vw, 2.8rem)',
-            fontWeight: 800,
+            fontSize: eligible ? 'clamp(2.8rem, 7.5vw, 4rem)' : 'clamp(2rem, 5.5vw, 2.8rem)',
+            fontWeight: 900,
             color: eligible ? '#16a34a' : '#dc2626',
-            fontFamily: '"Lora", Georgia, serif',
-            letterSpacing: '-0.02em',
+            fontFamily: '"Inter", system-ui, sans-serif',
+            letterSpacing: '-0.035em',
             lineHeight: 1,
-            margin: '0.4rem 0 0.4rem',
+            margin: '0 0 1.5rem',
           }}
         >
           {eligible ? usd : 'Ahh, Shoot! 😅'}
@@ -1555,21 +1573,21 @@ function ShareResult({
               fontSize: '0.85rem',
               color: '#6b7280',
               lineHeight: 1.4,
-              marginBottom: '0.9rem',
+              marginTop: '-0.9rem',
+              marginBottom: '1.25rem',
             }}
           >
             No bag this time. Go do something onchain on Base, then come back.
           </div>
         )}
 
+        {/* Bottom row — token pill left, score pill right; never wraps */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: '0.75rem',
+            gap: 12,
           }}
         >
           {eligible ? (
@@ -1578,39 +1596,44 @@ function ShareResult({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
-                padding: '0.5rem 0.9rem',
+                padding: '0.55rem 1rem',
                 background: 'rgba(255,255,255,0.7)',
                 border: '1px solid rgba(0,82,255,0.15)',
                 borderRadius: 999,
+                flexShrink: 0,
               }}
             >
               <img src="/base-logo.png" alt="" width={20} height={20} />
-              <span style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: '0.95rem' }}>
+              <span
+                style={{
+                  fontWeight: 800,
+                  fontFamily: 'monospace',
+                  fontSize: '0.95rem',
+                }}
+              >
                 {tokens}
               </span>
-              <span style={{ color: '#6b7280', fontWeight: 700, fontSize: '0.85rem' }}>$BASE</span>
+              <span style={{ color: '#6b7280', fontWeight: 700, fontSize: '0.85rem' }}>
+                $BASE
+              </span>
             </div>
           ) : (
-            <div
-              style={{
-                fontSize: '0.78rem',
-                color: '#9ca3af',
-                fontStyle: 'italic',
-              }}
-            >
+            <div style={{ fontSize: '0.78rem', color: '#9ca3af', fontStyle: 'italic' }}>
               0 $BASE, empty bag
             </div>
           )}
           <div
             style={{
-              padding: '0.4rem 0.85rem',
+              padding: '0.5rem 1rem',
               background: 'rgba(255,255,255,0.7)',
               border: '1px solid rgba(0,82,255,0.15)',
               borderRadius: 999,
-              fontSize: '0.78rem',
+              fontSize: '0.8rem',
               fontFamily: 'monospace',
               color: '#0a0a0c',
               fontWeight: 600,
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
             }}
           >
             Score {result.totalScore} / {result.maxScore}
@@ -1738,12 +1761,12 @@ function CalculatingPanel() {
         <div>
           <div
             style={{
-              fontFamily: '"Lora", Georgia, serif',
+              fontFamily: '"Inter", system-ui, sans-serif',
               fontSize: 'clamp(1.8rem, 4vw, 2.4rem)',
-              fontWeight: 500,
+              fontWeight: 800,
               lineHeight: 1,
               color: C.text,
-              letterSpacing: '-0.02em',
+              letterSpacing: '-0.03em',
             }}
           >
             Calculating
