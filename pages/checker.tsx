@@ -605,10 +605,10 @@ function ResultPanel({
         style={{
           fontFamily: '"Inter", system-ui, sans-serif',
           fontWeight: 900,
-          fontSize: 'clamp(2.5rem, 5vw, 3.6rem)',
+          fontSize: 'clamp(3rem, 6vw, 4.5rem)',
           lineHeight: 1.0,
           margin: '0 0 0.5rem',
-          letterSpacing: '-0.03em',
+          letterSpacing: '-0.035em',
           color: eligible ? C.text : '#fca5a5',
         }}
       >
@@ -630,64 +630,64 @@ function ResultPanel({
       )}
       {eligible && <div style={{ marginBottom: '1.25rem' }} />}
 
-      <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 8 }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 10 }}>
         YOU WILL RECEIVE
       </div>
       <div
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: 10,
-          padding: '0.6rem 1.1rem',
+          gap: 12,
+          padding: '0.75rem 1.35rem',
           background: C.panel,
           border: `1px solid ${C.border}`,
           borderRadius: 999,
-          marginBottom: '1.5rem',
+          marginBottom: '1.75rem',
         }}
       >
-        <img src="/base-logo.png" alt="" width={22} height={22} />
-        <span style={{ fontWeight: 800, fontSize: '1.1rem', fontFamily: 'monospace' }}>
+        <img src="/base-logo.png" alt="" width={28} height={28} />
+        <span style={{ fontWeight: 800, fontSize: '1.35rem', fontFamily: 'monospace', color: C.text }}>
           {Math.round(estimate.userTokens).toLocaleString('en-US')}
         </span>
-        <span style={{ color: C.textMute, fontWeight: 700, fontSize: '0.95rem' }}>$BASE</span>
+        <span style={{ color: C.textMute, fontWeight: 700, fontSize: '1.1rem' }}>$BASE</span>
       </div>
 
-      <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 6 }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.12em', color: C.textMute, marginBottom: 8 }}>
         ESTIMATED VALUE
       </div>
       <div
         style={{
-          fontSize: 'clamp(2.2rem, 4.5vw, 3rem)',
+          fontSize: 'clamp(2.8rem, 5.5vw, 4rem)',
           fontWeight: 900,
           color: eligible ? C.green : '#fca5a5',
           fontFamily: '"Inter", system-ui, sans-serif',
-          letterSpacing: '-0.035em',
-          marginBottom: '1.25rem',
+          letterSpacing: '-0.04em',
+          marginBottom: '1.5rem',
           lineHeight: 1,
         }}
       >
         ${Math.round(estimate.userUsd).toLocaleString('en-US')}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
         <div
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '0.3rem 0.7rem',
+            gap: 8,
+            padding: '0.45rem 0.95rem',
             background: C.panel,
             border: `1px solid ${C.border}`,
             borderRadius: 999,
-            fontSize: '0.75rem',
+            fontSize: '0.95rem',
             color: C.text,
-            fontWeight: 600,
+            fontWeight: 700,
           }}
         >
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: eligible ? C.green : C.red }} />
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: eligible ? C.green : C.red }} />
           Score {result.totalScore} / {result.maxScore}
         </div>
-        <div style={{ fontSize: '0.7rem', color: C.textMute, fontFamily: 'monospace' }}>
+        <div style={{ fontSize: '0.85rem', color: C.textMute, fontFamily: 'monospace' }}>
           {result.resolvedFrom && (
             <>
               <span style={{ color: C.accent }}>{result.resolvedFrom}</span> →{' '}
@@ -749,18 +749,18 @@ function IntroPanel() {
         style={{
           fontFamily: '"Inter", system-ui, sans-serif',
           fontWeight: 900,
-          fontSize: 'clamp(2.25rem, 4.5vw, 3rem)',
+          fontSize: 'clamp(2.75rem, 5.5vw, 3.8rem)',
           lineHeight: 1.05,
-          margin: '0 0 1rem',
+          margin: '0 0 1.25rem',
           color: C.text,
-          letterSpacing: '-0.03em',
+          letterSpacing: '-0.035em',
         }}
       >
         <span style={{ color: C.accent }}>$BASE</span> Airdrop Calculator
       </h1>
       <p
         style={{
-          fontSize: '0.95rem',
+          fontSize: '1.05rem',
           color: C.textMute,
           lineHeight: 1.55,
           margin: '0 0 1rem',
@@ -1539,20 +1539,20 @@ function ShareResult({
           <div
             style={{
               position: 'absolute',
-              top: 38,
-              left: 48,
-              right: 48,
+              top: 44,
+              left: 56,
+              right: 56,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 16,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-              <img src="/base-logo.png" alt="Base" width={40} height={40} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+              <img src="/base-logo.png" alt="Base" width={48} height={48} />
               <span
                 style={{
-                  fontSize: 22,
+                  fontSize: 28,
                   fontWeight: 800,
                   letterSpacing: '0.13em',
                   color: '#0a0a0c',
@@ -1564,14 +1564,14 @@ function ShareResult({
             </div>
             <div
               style={{
-                padding: '8px 18px',
+                padding: '12px 24px',
                 background: 'rgba(0,82,255,0.06)',
                 border: '1px solid rgba(0,82,255,0.18)',
                 borderRadius: 999,
-                fontSize: 18,
+                fontSize: 22,
                 fontFamily: 'monospace',
                 color: '#0a0a0c',
-                maxWidth: 300,
+                maxWidth: 340,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -1586,14 +1586,14 @@ function ShareResult({
           <div
             style={{
               position: 'absolute',
-              top: eligible ? 160 : 180,
-              left: 48,
-              right: 48,
-              fontSize: eligible ? 130 : 80,
+              top: eligible ? 155 : 190,
+              left: 56,
+              right: 56,
+              fontSize: eligible ? 170 : 110,
               fontWeight: 900,
               color: eligible ? '#16a34a' : '#dc2626',
               fontFamily: '"Inter", system-ui, sans-serif',
-              letterSpacing: '-0.04em',
+              letterSpacing: '-0.045em',
               lineHeight: 1,
             }}
           >
@@ -1603,10 +1603,10 @@ function ShareResult({
             <div
               style={{
                 position: 'absolute',
-                top: 290,
-                left: 48,
-                right: 48,
-                fontSize: 20,
+                top: 320,
+                left: 56,
+                right: 56,
+                fontSize: 24,
                 color: '#6b7280',
                 lineHeight: 1.4,
               }}
@@ -1619,8 +1619,8 @@ function ShareResult({
           <div
             style={{
               position: 'absolute',
-              bottom: 80,
-              left: 48,
+              bottom: 82,
+              left: 56,
             }}
           >
             {eligible ? (
@@ -1628,21 +1628,28 @@ function ShareResult({
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 12,
-                  padding: '12px 22px',
-                  background: 'rgba(255,255,255,0.85)',
-                  border: '1px solid rgba(0,82,255,0.15)',
+                  gap: 14,
+                  padding: '16px 26px',
+                  background: 'rgba(255,255,255,0.9)',
+                  border: '1px solid rgba(0,82,255,0.18)',
                   borderRadius: 999,
                 }}
               >
-                <img src="/base-logo.png" alt="" width={28} height={28} />
-                <span style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: 22 }}>
+                <img src="/base-logo.png" alt="" width={34} height={34} />
+                <span
+                  style={{
+                    fontWeight: 800,
+                    fontFamily: 'monospace',
+                    fontSize: 30,
+                    color: '#0a0a0c',
+                  }}
+                >
                   {tokens}
                 </span>
-                <span style={{ color: '#6b7280', fontWeight: 700, fontSize: 18 }}>$BASE</span>
+                <span style={{ color: '#374151', fontWeight: 800, fontSize: 22 }}>$BASE</span>
               </div>
             ) : (
-              <div style={{ fontSize: 18, color: '#9ca3af', fontStyle: 'italic' }}>
+              <div style={{ fontSize: 22, color: '#9ca3af', fontStyle: 'italic' }}>
                 0 $BASE, empty bag
               </div>
             )}
@@ -1652,15 +1659,16 @@ function ShareResult({
           <div
             style={{
               position: 'absolute',
-              bottom: 80,
-              right: 48,
-              padding: '14px 22px',
-              background: 'rgba(255,255,255,0.85)',
-              border: '1px solid rgba(0,82,255,0.15)',
+              bottom: 82,
+              right: 56,
+              padding: '18px 28px',
+              background: 'rgba(255,255,255,0.9)',
+              border: '1px solid rgba(0,82,255,0.18)',
               borderRadius: 999,
-              fontSize: 18,
+              fontSize: 24,
               fontFamily: 'monospace',
-              fontWeight: 600,
+              fontWeight: 700,
+              color: '#0a0a0c',
               whiteSpace: 'nowrap',
             }}
           >
@@ -1671,26 +1679,24 @@ function ShareResult({
           <div
             style={{
               position: 'absolute',
-              bottom: 22,
-              left: 0,
-              right: 0,
+              bottom: 24,
+              left: 56,
+              right: 56,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8,
-              fontSize: 15,
+              gap: 10,
+              fontSize: 19,
               color: '#6b7280',
-              paddingTop: 14,
+              paddingTop: 16,
               borderTop: '1px solid rgba(0,0,0,0.06)',
-              marginLeft: 48,
-              marginRight: 48,
             }}
           >
             <img
               src="/fashaking.png"
               alt=""
-              width={22}
-              height={22}
+              width={28}
+              height={28}
               crossOrigin="anonymous"
               style={{ borderRadius: '50%' }}
             />
