@@ -1479,90 +1479,87 @@ function ShareResult({
         SHARE YOUR RESULT
       </div>
 
-      {/* The card itself — white background so it shares cleanly on any feed */}
+      {/* Card — uses the design template as a background image with text overlays positioned in % so layout always matches the template regardless of width */}
       <div
         ref={cardRef}
         style={{
-          background: eligible
-            ? 'linear-gradient(135deg, #eef4ff 0%, #ffffff 50%, #f5f0ff 100%)'
-            : 'linear-gradient(135deg, #fff5f5 0%, #ffffff 50%, #fff7ed 100%)',
-          borderRadius: 24,
-          padding: '1.6rem 1.75rem',
+          position: 'relative',
+          width: '100%',
+          aspectRatio: '1023 / 537',
+          backgroundImage: 'url(/share-card-template.png)',
+          backgroundSize: '100% 100%',
+          backgroundRepeat: 'no-repeat',
+          borderRadius: 20,
+          overflow: 'hidden',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
           color: '#0a0a0c',
           fontFamily: '"Inter", system-ui, sans-serif',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
-          border: eligible ? '1px solid rgba(0,82,255,0.15)' : '1px solid rgba(239,68,68,0.2)',
         }}
       >
-        {/* Header row — title left, basename right; never wraps */}
+        {/* Header: title row top-left */}
         <div
           style={{
+            position: 'absolute',
+            top: '7.5%',
+            left: '5.5%',
             display: 'flex',
             alignItems: 'center',
-            gap: 12,
-            marginBottom: '1.5rem',
+            gap: '0.7em',
+            fontSize: 'clamp(0.7rem, 1.7vw, 1rem)',
           }}
         >
-          <div
+          <img
+            src="/base-logo.png"
+            alt="Base"
+            style={{ height: '2.2em', width: '2.2em' }}
+          />
+          <span
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            <img
-              src="/base-logo.png"
-              alt="Base"
-              width={28}
-              height={28}
-              style={{ flexShrink: 0 }}
-            />
-            <span
-              style={{
-                fontSize: '0.85rem',
-                fontWeight: 800,
-                letterSpacing: '0.14em',
-                color: '#0a0a0c',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              BASE AIRDROP CALCULATOR
-            </span>
-          </div>
-          <div
-            style={{
-              padding: '0.4rem 0.9rem',
-              background: 'rgba(0,82,255,0.06)',
-              border: '1px solid rgba(0,82,255,0.18)',
-              borderRadius: 999,
-              fontSize: '0.78rem',
-              fontFamily: 'monospace',
+              fontWeight: 800,
+              letterSpacing: '0.13em',
               color: '#0a0a0c',
-              maxWidth: 200,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
-              flexShrink: 0,
             }}
           >
-            {handle}
-          </div>
+            BASE AIRDROP CALCULATOR
+          </span>
         </div>
 
-        {/* Big USD figure */}
+        {/* Basename pill top-right */}
         <div
           style={{
-            fontSize: eligible ? 'clamp(2.8rem, 7.5vw, 4rem)' : 'clamp(2rem, 5.5vw, 2.8rem)',
+            position: 'absolute',
+            top: '8.5%',
+            right: '5.5%',
+            padding: '0.45em 1em',
+            background: 'rgba(0,82,255,0.06)',
+            border: '1px solid rgba(0,82,255,0.18)',
+            borderRadius: 999,
+            fontSize: 'clamp(0.65rem, 1.4vw, 0.85rem)',
+            fontFamily: 'monospace',
+            color: '#0a0a0c',
+            maxWidth: '30%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {handle}
+        </div>
+
+        {/* Big USD figure — vertically centered */}
+        <div
+          style={{
+            position: 'absolute',
+            top: eligible ? '36%' : '38%',
+            left: '5.5%',
+            right: '5.5%',
+            fontSize: eligible ? 'clamp(2.6rem, 8.5vw, 5rem)' : 'clamp(1.8rem, 6vw, 3.4rem)',
             fontWeight: 900,
             color: eligible ? '#16a34a' : '#dc2626',
             fontFamily: '"Inter", system-ui, sans-serif',
-            letterSpacing: '-0.035em',
+            letterSpacing: '-0.04em',
             lineHeight: 1,
-            margin: '0 0 1.5rem',
           }}
         >
           {eligible ? usd : 'Ahh, Shoot! 😅'}
@@ -1570,96 +1567,89 @@ function ShareResult({
         {!eligible && (
           <div
             style={{
-              fontSize: '0.85rem',
+              position: 'absolute',
+              top: '55%',
+              left: '5.5%',
+              right: '5.5%',
+              fontSize: 'clamp(0.7rem, 1.4vw, 0.9rem)',
               color: '#6b7280',
               lineHeight: 1.4,
-              marginTop: '-0.9rem',
-              marginBottom: '1.25rem',
             }}
           >
             No bag this time. Go do something onchain on Base, then come back.
           </div>
         )}
 
-        {/* Bottom row — token pill left, score pill right; never wraps */}
+        {/* Token pill — bottom-left */}
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
+            position: 'absolute',
+            bottom: '18%',
+            left: '5.5%',
+            display: 'inline-flex',
             alignItems: 'center',
-            gap: 12,
+            gap: '0.5em',
+            padding: '0.5em 1em',
+            background: 'rgba(255,255,255,0.85)',
+            border: '1px solid rgba(0,82,255,0.15)',
+            borderRadius: 999,
+            fontSize: 'clamp(0.75rem, 1.6vw, 1rem)',
           }}
         >
           {eligible ? (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '0.55rem 1rem',
-                background: 'rgba(255,255,255,0.7)',
-                border: '1px solid rgba(0,82,255,0.15)',
-                borderRadius: 999,
-                flexShrink: 0,
-              }}
-            >
-              <img src="/base-logo.png" alt="" width={20} height={20} />
-              <span
-                style={{
-                  fontWeight: 800,
-                  fontFamily: 'monospace',
-                  fontSize: '0.95rem',
-                }}
-              >
-                {tokens}
-              </span>
-              <span style={{ color: '#6b7280', fontWeight: 700, fontSize: '0.85rem' }}>
-                $BASE
-              </span>
-            </div>
+            <>
+              <img
+                src="/base-logo.png"
+                alt=""
+                style={{ height: '1.4em', width: '1.4em' }}
+              />
+              <span style={{ fontWeight: 800, fontFamily: 'monospace' }}>{tokens}</span>
+              <span style={{ color: '#6b7280', fontWeight: 700 }}>$BASE</span>
+            </>
           ) : (
-            <div style={{ fontSize: '0.78rem', color: '#9ca3af', fontStyle: 'italic' }}>
-              0 $BASE, empty bag
-            </div>
+            <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>0 $BASE, empty bag</span>
           )}
-          <div
-            style={{
-              padding: '0.5rem 1rem',
-              background: 'rgba(255,255,255,0.7)',
-              border: '1px solid rgba(0,82,255,0.15)',
-              borderRadius: 999,
-              fontSize: '0.8rem',
-              fontFamily: 'monospace',
-              color: '#0a0a0c',
-              fontWeight: 600,
-              flexShrink: 0,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Score {result.totalScore} / {result.maxScore}
-          </div>
         </div>
 
+        {/* Score pill — bottom-right */}
         <div
           style={{
+            position: 'absolute',
+            bottom: '18%',
+            right: '5.5%',
+            padding: '0.55em 1.1em',
+            background: 'rgba(255,255,255,0.85)',
+            border: '1px solid rgba(0,82,255,0.15)',
+            borderRadius: 999,
+            fontSize: 'clamp(0.75rem, 1.5vw, 0.95rem)',
+            fontFamily: 'monospace',
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Score {result.totalScore} / {result.maxScore}
+        </div>
+
+        {/* Attribution — bottom center */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '4%',
+            left: 0,
+            right: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 6,
-            fontSize: '0.72rem',
+            gap: '0.4em',
+            fontSize: 'clamp(0.6rem, 1.2vw, 0.8rem)',
             color: '#6b7280',
-            marginTop: '0.9rem',
-            paddingTop: '0.7rem',
-            borderTop: '1px solid rgba(0,0,0,0.06)',
           }}
         >
           <img
             src="/fashaking.png"
             alt=""
-            width={18}
-            height={18}
             crossOrigin="anonymous"
-            style={{ borderRadius: '50%' }}
+            style={{ height: '1.5em', width: '1.5em', borderRadius: '50%' }}
           />
           <span>Built by</span>
           <span style={{ fontWeight: 700, color: '#0a0a0c' }}>@fashaking</span>
