@@ -1461,49 +1461,35 @@ function ShareResult({
     setTimeout(() => setToast(null), 2000)
   }
 
-  const captureCanvas = async () => {
-    if (!cardRef.current) return null
-    const { default: html2canvas } = await import('html2canvas')
-    // Clone the card offscreen, unscaled — so the visible UI never shifts
-    // during capture, and html2canvas reads it at full 1023x537.
-    const original = cardRef.current
-    const clone = original.cloneNode(true) as HTMLDivElement
-    clone.style.transform = 'none'
-    clone.style.position = 'fixed'
-    clone.style.top = '0'
-    clone.style.left = '-99999px'
-    clone.style.pointerEvents = 'none'
-    clone.style.margin = '0'
-    document.body.appendChild(clone)
-    // Wait a frame so the clone is laid out + images are decoded
-    await new Promise((r) => requestAnimationFrame(() => r(null)))
-    try {
-      return await html2canvas(clone, {
-        backgroundColor: null,
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        width: 1023,
-        height: 537,
-      })
-    } finally {
-      document.body.removeChild(clone)
-    }
-  }
+
+  // Build the server-side share-card URL with all the dynamic data baked in.
+  // Pixel-perfect, identical every time — no client-side rasterization.
+  const shareCardUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      eligible: estimate.eligible ? '1' : '0',
+      handle,
+      tokens: String(Math.round(estimate.userTokens)),
+      usd: String(Math.round(estimate.userUsd)),
+      score: String(result.totalScore),
+      max: String(result.maxScore),
+    })
+    return `/api/share-card?${params.toString()}`
+  }, [estimate, handle, result.totalScore, result.maxScore])
 
   const downloadImage = async () => {
     setBusy('download')
     try {
-      const canvas = await captureCanvas()
-      if (!canvas) return
+      const res = await fetch(shareCardUrl)
+      if (!res.ok) throw new Error('Render failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.download = `base-airdrop-${handle.replace(/[^a-z0-9.-]/gi, '_')}.png`
-      link.href = canvas.toDataURL('image/png')
+      link.href = url
       link.click()
+      URL.revokeObjectURL(url)
       showToast('Downloaded')
-    } catch (err) {
-      console.error(err)
+    } catch {
       showToast('Download failed')
     } finally {
       setBusy(null)
@@ -1513,28 +1499,18 @@ function ShareResult({
   const copyImage = async () => {
     setBusy('copy')
     try {
-      const canvas = await captureCanvas()
-      if (!canvas) return
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          showToast('Copy failed')
-          setBusy(null)
-          return
-        }
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob }),
-          ])
-          showToast('Copied to clipboard')
-        } catch {
-          showToast('Clipboard blocked, use Download')
-        } finally {
-          setBusy(null)
-        }
-      }, 'image/png')
-    } catch (err) {
-      console.error(err)
+      const res = await fetch(shareCardUrl)
+      if (!res.ok) throw new Error('Render failed')
+      const blob = await res.blob()
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+        showToast('Copied to clipboard')
+      } catch {
+        showToast('Clipboard blocked, use Download')
+      }
+    } catch {
       showToast('Copy failed')
+    } finally {
       setBusy(null)
     }
   }
