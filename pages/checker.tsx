@@ -768,6 +768,183 @@ function ResultPanel({
         Base score {baseScore} / {baseMax}
         {result.bonusScore > 0 && ` · Bonus +${result.bonusScore} / ${result.bonusMaxScore}`}
       </div>
+
+      <ShareActions result={result} estimate={estimate} shortAddr={shortAddr} />
+    </div>
+  )
+}
+
+function ShareActions({
+  result,
+  estimate,
+  shortAddr,
+}: {
+  result: Result
+  estimate: NonNullable<ReturnType<typeof estimateAllocation>>
+  shortAddr: (a: string) => string
+}) {
+  const [busy, setBusy] = useState<'copy' | 'download' | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const handle =
+    result.basename?.name || result.resolvedFrom || shortAddr(result.address)
+
+  const cardUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      eligible: estimate.eligible ? '1' : '0',
+      handle,
+      tokens: String(Math.round(estimate.userTokens)),
+      usd: String(Math.round(estimate.userUsd)),
+      score: String(result.totalScore),
+      max: String(result.maxScore),
+    })
+    return `/api/share-card?${params.toString()}`
+  }, [estimate, handle, result.totalScore, result.maxScore])
+
+  const tokens = Math.round(estimate.userTokens).toLocaleString('en-US')
+  const usd = '$' + Math.round(estimate.userUsd).toLocaleString('en-US')
+  const tweetText = encodeURIComponent(
+    estimate.eligible
+      ? `I'm eligible for ${tokens} $BASE (~${usd}) in a hypothetical Base airdrop. Check yours:`
+      : `Ahh, Shoot! 😅 Not on the hypothetical $BASE airdrop list. Check yours:`,
+  )
+  const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(
+    typeof window !== 'undefined'
+      ? window.location.origin + '/checker'
+      : 'https://base-checker.vercel.app/checker',
+  )}`
+
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 2000)
+  }
+
+  const fetchPng = async () => {
+    const res = await fetch(cardUrl)
+    if (!res.ok) throw new Error('Render failed')
+    return res.blob()
+  }
+
+  const downloadImage = async () => {
+    setBusy('download')
+    try {
+      const blob = await fetchPng()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `base-airdrop-${handle.replace(/[^a-z0-9.-]/gi, '_')}.png`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+      showToast('Downloaded')
+    } catch {
+      showToast('Download failed')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const copyImage = async () => {
+    setBusy('copy')
+    try {
+      const blob = await fetchPng()
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+        showToast('Copied to clipboard')
+      } catch {
+        showToast('Clipboard blocked, use Download')
+      }
+    } catch {
+      showToast('Copy failed')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div style={{ marginTop: '1.5rem' }}>
+      <div
+        style={{
+          fontSize: '0.7rem',
+          letterSpacing: '0.12em',
+          color: C.textMute,
+          fontWeight: 700,
+          marginBottom: 10,
+        }}
+      >
+        SHARE YOUR RESULT
+      </div>
+
+      {/* Live preview of the share card */}
+      <img
+        src={cardUrl}
+        alt="Share card preview"
+        style={{
+          width: '100%',
+          aspectRatio: '1023 / 537',
+          borderRadius: 16,
+          border: `1px solid ${C.borderSoft}`,
+          background: C.panel,
+          display: 'block',
+          objectFit: 'contain',
+        }}
+      />
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+        <a
+          href={tweetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: '0.65rem 1.1rem',
+            background: '#0a0a0c',
+            color: 'white',
+            border: `1px solid ${C.border}`,
+            borderRadius: 999,
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            textDecoration: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Share on X →
+        </a>
+        <button
+          type="button"
+          onClick={copyImage}
+          disabled={busy === 'copy'}
+          style={{
+            padding: '0.65rem 1.1rem',
+            background: 'transparent',
+            color: C.text,
+            border: `1px solid ${C.border}`,
+            borderRadius: 999,
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            cursor: busy === 'copy' ? 'wait' : 'pointer',
+          }}
+        >
+          {busy === 'copy' ? 'Copying…' : 'Copy image'}
+        </button>
+        <button
+          type="button"
+          onClick={downloadImage}
+          disabled={busy === 'download'}
+          style={{
+            padding: '0.65rem 1.1rem',
+            background: 'transparent',
+            color: C.text,
+            border: `1px solid ${C.border}`,
+            borderRadius: 999,
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            cursor: busy === 'download' ? 'wait' : 'pointer',
+          }}
+        >
+          {busy === 'download' ? 'Saving…' : 'Download image'}
+        </button>
+      </div>
+      {toast && (
+        <div style={{ marginTop: 8, fontSize: '0.75rem', color: C.green }}>{toast}</div>
+      )}
     </div>
   )
 }
