@@ -9,8 +9,14 @@ import path from 'path'
 
 // Load fonts + images once at module load (cold start), reuse on subsequent
 // requests in the same lambda instance.
-const interBold = fs.readFileSync(path.join(process.cwd(), 'assets/Inter-Bold.woff'))
-const interBlack = fs.readFileSync(path.join(process.cwd(), 'assets/Inter-Black.woff'))
+const baseSansBold = fs.readFileSync(path.join(process.cwd(), 'assets/BaseSans-Bold.woff'))
+const baseSansBlack = fs.readFileSync(path.join(process.cwd(), 'assets/BaseSans-Black.woff'))
+const baseSansMonoRegular = fs.readFileSync(
+  path.join(process.cwd(), 'assets/BaseSansMono-Regular.woff'),
+)
+const baseSansMonoMedium = fs.readFileSync(
+  path.join(process.cwd(), 'assets/BaseSansMono-Medium.woff'),
+)
 const baseLogoPng = fs.readFileSync(path.join(process.cwd(), 'public/base-logo.png'))
 const fashakingPng = fs.readFileSync(path.join(process.cwd(), 'public/fashaking.png'))
 
@@ -47,6 +53,7 @@ export default async function handler(
               ? 'linear-gradient(135deg, #eef4ff 0%, #ffffff 50%, #f5f0ff 100%)'
               : 'linear-gradient(135deg, #fff5f5 0%, #ffffff 50%, #fff7ed 100%)',
             color: '#0a0a0c',
+            fontFamily: '"Base Sans", sans-serif',
           }}
         >
           {/* Header */}
@@ -67,6 +74,7 @@ export default async function handler(
                   fontWeight: 700,
                   letterSpacing: '0.13em',
                   color: '#0a0a0c',
+                  fontFamily: '"Base Sans", sans-serif',
                 }}
               >
                 BASE AIRDROP CALCULATOR
@@ -82,6 +90,8 @@ export default async function handler(
                 fontSize: 22,
                 color: '#0a0a0c',
                 maxWidth: 340,
+                fontFamily: '"Base Mono", monospace',
+                fontWeight: 500,
               }}
             >
               {handle}
@@ -112,13 +122,22 @@ export default async function handler(
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={baseLogoUri} width={100} height={100} alt="" />
-                <span style={{ display: 'flex' }}>{tokens}</span>
+                <span
+                  style={{
+                    display: 'flex',
+                    fontFamily: '"Base Mono", monospace',
+                    fontWeight: 500,
+                  }}
+                >
+                  {tokens}
+                </span>
                 <span
                   style={{
                     display: 'flex',
                     fontSize: 52,
                     color: '#374151',
                     fontWeight: 700,
+                    fontFamily: '"Base Sans", sans-serif',
                   }}
                 >
                   $BASE
@@ -133,11 +152,20 @@ export default async function handler(
                     color: '#dc2626',
                     letterSpacing: '-0.045em',
                     lineHeight: 1,
+                    fontFamily: '"Base Sans", sans-serif',
                   }}
                 >
                   Ahh, Shoot! 😅
                 </div>
-                <div style={{ display: 'flex', fontSize: 22, color: '#6b7280', marginTop: 16 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    fontSize: 22,
+                    color: '#6b7280',
+                    marginTop: 16,
+                    fontFamily: '"Base Sans", sans-serif',
+                  }}
+                >
                   No bag this time. Go do something onchain on Base, then come back.
                 </div>
               </div>
@@ -171,16 +199,19 @@ export default async function handler(
                     color: '#6b7280',
                     fontWeight: 700,
                     fontSize: 18,
+                    fontFamily: '"Base Sans", sans-serif',
+                    letterSpacing: '0.08em',
                   }}
                 >
                   WORTH
                 </span>
                 <span
                   style={{
-                    fontWeight: 900,
+                    fontWeight: 500,
                     fontSize: 36,
                     color: '#16a34a',
-                    letterSpacing: '-0.02em',
+                    letterSpacing: '-0.01em',
+                    fontFamily: '"Base Mono", monospace',
                   }}
                 >
                   {usd}
@@ -199,8 +230,9 @@ export default async function handler(
                 border: '1px solid rgba(0,82,255,0.18)',
                 borderRadius: 999,
                 fontSize: 24,
-                fontWeight: 700,
+                fontWeight: 500,
                 color: '#0a0a0c',
+                fontFamily: '"Base Mono", monospace',
               }}
             >
               Score {score} / {max}
@@ -243,8 +275,10 @@ export default async function handler(
         width: 1023,
         height: 537,
         fonts: [
-          { name: 'Inter', data: interBold, weight: 700, style: 'normal' },
-          { name: 'Inter', data: interBlack, weight: 900, style: 'normal' },
+          { name: 'Base Sans', data: baseSansBold, weight: 700, style: 'normal' },
+          { name: 'Base Sans', data: baseSansBlack, weight: 900, style: 'normal' },
+          { name: 'Base Mono', data: baseSansMonoRegular, weight: 400, style: 'normal' },
+          { name: 'Base Mono', data: baseSansMonoMedium, weight: 500, style: 'normal' },
         ],
       },
     )
