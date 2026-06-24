@@ -90,6 +90,7 @@ export default async function handler(
                 fontSize: 22,
                 color: '#0a0a0c',
                 maxWidth: 340,
+                letterSpacing: '-0.03em',
                 fontFamily: '"Base Mono", monospace',
                 fontWeight: 500,
               }}
@@ -127,6 +128,7 @@ export default async function handler(
                     display: 'flex',
                     fontFamily: '"Base Mono", monospace',
                     fontWeight: 500,
+                    letterSpacing: '-0.06em',
                   }}
                 >
                   {tokens}
@@ -138,6 +140,8 @@ export default async function handler(
                     color: '#374151',
                     fontWeight: 700,
                     fontFamily: '"Base Sans", sans-serif',
+                    letterSpacing: '0',
+                    marginLeft: 12,
                   }}
                 >
                   $BASE
@@ -210,7 +214,7 @@ export default async function handler(
                     fontWeight: 500,
                     fontSize: 36,
                     color: '#16a34a',
-                    letterSpacing: '-0.01em',
+                    letterSpacing: '-0.04em',
                     fontFamily: '"Base Mono", monospace',
                   }}
                 >
@@ -233,6 +237,7 @@ export default async function handler(
                 fontWeight: 500,
                 color: '#0a0a0c',
                 fontFamily: '"Base Mono", monospace',
+                letterSpacing: '-0.04em',
               }}
             >
               Score {score} / {max}
