@@ -176,12 +176,19 @@ export default function CheckerPage() {
   const runCheck = async () => {
     const target = input.trim()
     if (!target) return
+    const baseAppTrim = baseAppInput.trim()
+    if (baseAppTrim && baseAppTrim.toLowerCase() === target.toLowerCase()) {
+      setError(
+        'Base App address must be different from the main wallet. The bonus credits a SECOND wallet (your Smart Wallet / Base App) linked to the same identity.',
+      )
+      return
+    }
     setError('')
     setResult(null)
     setIsLoading(true)
     try {
       const params = new URLSearchParams({ address: target })
-      if (baseAppInput.trim()) params.set('baseApp', baseAppInput.trim())
+      if (baseAppTrim) params.set('baseApp', baseAppTrim)
       if (fidInput.trim()) params.set('fid', fidInput.trim())
       const res = await fetch(`/api/check-wallet?${params.toString()}`)
       const data = await res.json()
