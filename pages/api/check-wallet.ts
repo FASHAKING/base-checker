@@ -25,6 +25,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     }
 
+    // Refuse if Base App resolves to the same address as the main wallet —
+    // the bonus is meant to credit a SECOND wallet (Smart Wallet / Base App)
+    // linked to the same identity, not the same address twice.
+    if (baseAppAddress && baseAppAddress.toLowerCase() === address.toLowerCase()) {
+      return res.status(400).json({
+        error:
+          'Base App address must be different from the main wallet — this bonus credits a second linked wallet, not the same address twice.',
+      })
+    }
+
     const result = await checkWallet(address, baseAppAddress, farcasterFid)
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
     return res.status(200).json({ ...result, resolvedFrom })

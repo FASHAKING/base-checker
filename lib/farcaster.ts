@@ -13,7 +13,11 @@ export type FarcasterProfile = {
   displayName: string | null
   followerCount: number
   followingCount: number
-  powerBadge: boolean
+  // Neynar's 0..1 quality score. Higher = more established / less sybil-y.
+  // power_badge was deprecated; this replaces it as the "quality" signal.
+  qualityScore: number
+  // True if the account has an active Neynar Pro subscription (paid signal).
+  proSubscriber: boolean
   custodyAddress: string | null
   verifiedEthAddresses: string[]
   // Lower FID = earlier user. FID is incrementing, so it's a proxy for age.
@@ -35,12 +39,20 @@ function bucketFid(fid: number): FarcasterProfile['fidAgeBucket'] {
 }
 
 export type FarcasterLookupResult =
-  | { ok: true; profile: FarcasterProfile; walletLinked: boolean }
+  | {
+      ok: true
+      profile: FarcasterProfile
+      walletLinked: boolean
+      // Which of the addresses we checked actually matched a verified address
+      // on the FID, or null if none matched.
+      linkedAddress: string | null
+    }
   | { ok: false; reason: string }
 
 export async function lookupFarcaster(
   fidRaw: string | number,
   wallet: string,
+  extraAddresses: (string | null | undefined)[] = [],
 ): Promise<FarcasterLookupResult> {
   const fid = typeof fidRaw === 'string' ? parseInt(fidRaw, 10) : fidRaw
   if (!Number.isFinite(fid) || fid <= 0) {
@@ -80,18 +92,29 @@ export async function lookupFarcaster(
       displayName: user.display_name ?? null,
       followerCount: user.follower_count ?? 0,
       followingCount: user.following_count ?? 0,
-      powerBadge: !!user.power_badge,
+      qualityScore: typeof user.score === 'number' ? user.score : 0,
+      proSubscriber: user.pro?.status === 'subscribed',
       custodyAddress: user.custody_address?.toLowerCase() ?? null,
       verifiedEthAddresses,
       fidAgeBucket: bucketFid(user.fid),
     }
 
-    const walletLower = wallet.toLowerCase()
-    const walletLinked =
-      verifiedEthAddresses.includes(walletLower) ||
-      profile.custodyAddress === walletLower
+    // Match the queried wallet first, then any extra candidates (e.g. the
+    // user's Base App / Smart Wallet address). The FID is "linked" if ANY of
+    // these matches a verified address or the custody address.
+    const candidates = [wallet, ...extraAddresses]
+      .filter((a): a is string => typeof a === 'string' && a.length > 0)
+      .map((a) => a.toLowerCase())
+    let linkedAddress: string | null = null
+    for (const addr of candidates) {
+      if (verifiedEthAddresses.includes(addr) || profile.custodyAddress === addr) {
+        linkedAddress = addr
+        break
+      }
+    }
+    const walletLinked = linkedAddress !== null
 
-    return { ok: true, profile, walletLinked }
+    return { ok: true, profile, walletLinked, linkedAddress }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Neynar unreachable.'
     return { ok: false, reason: msg }
@@ -104,37 +127,49 @@ export async function lookupFarcaster(
 // Tier 3 (+3): linked + above + (early/pre-launch FID OR 500+ casts equivalent via follower:following ratio proxy)
 export function scoreFarcaster(
   result: FarcasterLookupResult,
+  queriedWallet?: string,
 ): { value: number; display: string } {
   if (!result.ok) return { value: 0, display: result.reason }
   if (!result.walletLinked) {
     return {
       value: 0,
-      display: `FID ${result.profile.fid}, NOT linked to this wallet (ignored)`,
+      display: `FID ${result.profile.fid}, NOT linked to this wallet or Base App (ignored)`,
     }
   }
 
   const p = result.profile
-  const highSocial = p.powerBadge || p.followerCount >= 1_000
+  // High-quality signal: Neynar score ≥ 0.7 (their threshold for established
+  // accounts), an active Pro subscription, or ≥1k followers as a fallback.
+  const highSocial =
+    p.qualityScore >= 0.7 || p.proSubscriber || p.followerCount >= 1_000
   const earlyAdopter =
     p.fidAgeBucket === 'pre-launch' || p.fidAgeBucket === 'early'
 
   const handle = p.username ? `@${p.username}` : `FID ${p.fid}`
-  const badge = p.powerBadge ? '⚡' : ''
+  const badge = p.proSubscriber ? '✨' : ''
+  // If the FID was matched against an address other than the queried wallet
+  // (typically the Base App / Smart Wallet), call that out so it's clear.
+  const linked = result.linkedAddress?.toLowerCase()
+  const queried = queriedWallet?.toLowerCase()
+  const viaSuffix =
+    linked && queried && linked !== queried
+      ? ` (via ${linked.slice(0, 6)}…${linked.slice(-4)})`
+      : ''
 
   if (earlyAdopter && highSocial) {
     return {
       value: 3,
-      display: `${handle} ${badge} · ${p.followerCount} followers · ${p.fidAgeBucket} FID`,
+      display: `${handle}${badge ? ' ' + badge : ''} · ${p.followerCount} followers · ${p.fidAgeBucket} FID${viaSuffix}`,
     }
   }
   if (highSocial) {
     return {
       value: 2,
-      display: `${handle} ${badge} · ${p.followerCount} followers`,
+      display: `${handle}${badge ? ' ' + badge : ''} · ${p.followerCount} followers${viaSuffix}`,
     }
   }
   return {
     value: 1,
-    display: `${handle} · linked (${p.followerCount} followers)`,
+    display: `${handle} · linked (${p.followerCount} followers)${viaSuffix}`,
   }
 }

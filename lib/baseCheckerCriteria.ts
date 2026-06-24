@@ -108,8 +108,20 @@ export const CRITERIA: Criterion[] = [
       'zkSync crypto-native bonus (ENS holders)',
     ],
     tiers: [
-      { label: 'Owns a Basename', threshold: 1, points: 2 },
-      { label: 'Owns a short Basename (≤6 chars)', threshold: 2, points: 3 },
+      { label: 'Owns a Basename', threshold: 1, points: 1 },
+      { label: 'Owns a 5-9 char Basename', threshold: 2, points: 2 },
+      { label: 'Owns a 3-4 char premium Basename', threshold: 3, points: 3 },
+    ],
+  },
+  {
+    id: 'farcaster_pro_og_nft',
+    name: 'Farcaster Pro OG NFT',
+    category: 'identity',
+    description:
+      'Holds the limited-edition Farcaster Pro OG NFT (FCPRO), minted to the first 10,000 Pro subscribers. Checked across the queried wallet, linked Base App address, and FID custody / verified addresses.',
+    inspiredBy: ['Farcaster Pro early-adopter signal', 'Limited-supply NFT identity proof'],
+    tiers: [
+      { label: 'Owns the Farcaster Pro OG NFT', threshold: 1, points: 3 },
     ],
   },
 ]
@@ -217,4 +229,5 @@ export const COMMITMENT_CRITERIA_IDS = [
   'base_verify_identity',
   'wallet_age_days',
   'basename',
+  'farcaster_pro_og_nft',
 ] as const

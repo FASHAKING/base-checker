@@ -13,6 +13,7 @@ import {
 } from './baseCheckerCriteria'
 import { lookupFarcaster, scoreFarcaster, FarcasterProfile } from './farcaster'
 import { lookupBasename, BasenameInfo } from './basename'
+import { checkFarcasterProOg } from './farcasterProNft'
 
 const publicClient = createPublicClient({
   chain: base,
@@ -236,7 +237,7 @@ export async function checkWallet(
     address,
     name: null,
     hasBasename: false,
-    isShortBasename: false,
+    handleLength: null,
   }
   let basenameOk = false
   try {
@@ -245,12 +246,93 @@ export async function checkWallet(
   } catch {
     warnings.push('Basename lookup failed (L1 ENS unreachable).')
   }
-  const basenameValue = basenameInfo.isShortBasename ? 2 : basenameInfo.hasBasename ? 1 : 0
+  // Basename scoring follows the official length-based pricing tiers:
+  //   3-4 chars  = 0.01-0.1 ETH (premium)            → 3 pts
+  //   5-9 chars  = 0.001 ETH (most common, paid)     → 2 pts
+  //   10+ chars  = 0.0001 ETH (effectively free)     → 1 pt (credit for owning)
+  let basenameValue = 0
+  if (basenameInfo.hasBasename) {
+    const len = basenameInfo.handleLength ?? 0
+    if (len > 0 && len <= 4) basenameValue = 3
+    else if (len >= 5 && len <= 9) basenameValue = 2
+    else basenameValue = 1
+  }
+  const basenameLengthSuffix = basenameInfo.hasBasename
+    ? basenameValue === 3
+      ? ' (3-4 char premium)'
+      : basenameValue === 2
+      ? ' (5-9 char)'
+      : ' (10+ char)'
+    : ''
   const basenameDisplay = basenameInfo.hasBasename
-    ? `${basenameInfo.name}${basenameInfo.isShortBasename ? ' (short ≤6)' : ''}`
+    ? `${basenameInfo.name}${basenameLengthSuffix}`
     : basenameInfo.name
     ? `Primary: ${basenameInfo.name} (not a Basename)`
     : 'No primary name set'
+
+  // Farcaster FID lookup (optional, via Neynar). Moved up here because the
+  // Farcaster Pro OG NFT check below uses the FID's custody + verified
+  // addresses as additional candidates.
+  let farcasterProvided = false
+  let farcasterFid: number | null = null
+  let farcasterLinked = false
+  let farcasterProfile: FarcasterProfile | null = null
+  let farcasterValue = 0
+  let farcasterDisplay = 'Not provided'
+  let farcasterNote: string | null = null
+  let neynarOk = false
+  if (farcasterFidRaw && farcasterFidRaw.trim()) {
+    farcasterProvided = true
+    // Also accept the Base App / Smart Wallet address as a candidate for the
+    // FID-linked check — many users keep their FID verified against that
+    // address rather than the wallet they're scoring.
+    const lookup = await lookupFarcaster(farcasterFidRaw.trim(), address, [
+      baseAppAddressRaw,
+    ])
+    const scored = scoreFarcaster(lookup, address)
+    farcasterValue = scored.value
+    farcasterDisplay = scored.display
+    if (lookup.ok) {
+      neynarOk = true
+      farcasterFid = lookup.profile.fid
+      farcasterLinked = lookup.walletLinked
+      farcasterProfile = lookup.profile
+      if (!lookup.walletLinked) {
+        farcasterNote =
+          'FID provided but neither this wallet nor the Base App address is in its verified addresses. Ignored to prevent FID-claim abuse.'
+        warnings.push(farcasterNote)
+      }
+    } else {
+      farcasterNote = lookup.reason
+      warnings.push(`Farcaster: ${lookup.reason}`)
+    }
+  }
+
+  // Farcaster Pro OG NFT — check the queried wallet plus any related
+  // addresses (Base App, FID custody, FID verified). The NFT may have been
+  // minted to any of them.
+  let fcproValue = 0
+  let fcproDisplay = 'Not held'
+  try {
+    const fcpro = await checkFarcasterProOg([
+      address,
+      baseAppAddressRaw,
+      farcasterProfile?.custodyAddress,
+      ...(farcasterProfile?.verifiedEthAddresses ?? []),
+    ])
+    if (fcpro.owned) {
+      fcproValue = 1
+      const held = fcpro.ownerAddress!
+      const short = `${held.slice(0, 6)}…${held.slice(-4)}`
+      const isMain = held.toLowerCase() === address.toLowerCase()
+      fcproDisplay = isMain
+        ? `Held on this wallet (${short})`
+        : `Held on linked address ${short}`
+    }
+  } catch {
+    fcproDisplay = 'Lookup failed'
+    warnings.push('Farcaster Pro OG NFT lookup failed.')
+  }
 
   // 4. Compute scores per criterion
   const valueByCriterion: Record<string, { value: number; display: string }> = {
@@ -270,6 +352,7 @@ export async function checkWallet(
       display: hasBaseVerify ? `Verified (${identityProvider})` : 'Not verified',
     },
     basename: { value: basenameValue, display: basenameDisplay },
+    farcaster_pro_og_nft: { value: fcproValue, display: fcproDisplay },
   }
 
   const metrics: CheckerMetric[] = CRITERIA.map((c) => {
@@ -357,37 +440,6 @@ export async function checkWallet(
       }
     } catch {
       warnings.push('Base App wallet lookup failed.')
-    }
-  }
-
-  // Farcaster FID lookup (optional, via Neynar)
-  let farcasterProvided = false
-  let farcasterFid: number | null = null
-  let farcasterLinked = false
-  let farcasterProfile: FarcasterProfile | null = null
-  let farcasterValue = 0
-  let farcasterDisplay = 'Not provided'
-  let farcasterNote: string | null = null
-  let neynarOk = false
-  if (farcasterFidRaw && farcasterFidRaw.trim()) {
-    farcasterProvided = true
-    const lookup = await lookupFarcaster(farcasterFidRaw.trim(), address)
-    const scored = scoreFarcaster(lookup)
-    farcasterValue = scored.value
-    farcasterDisplay = scored.display
-    if (lookup.ok) {
-      neynarOk = true
-      farcasterFid = lookup.profile.fid
-      farcasterLinked = lookup.walletLinked
-      farcasterProfile = lookup.profile
-      if (!lookup.walletLinked) {
-        farcasterNote =
-          'FID provided but this wallet is not in its verified addresses. Ignored to prevent FID-claim abuse.'
-        warnings.push(farcasterNote)
-      }
-    } else {
-      farcasterNote = lookup.reason
-      warnings.push(`Farcaster: ${lookup.reason}`)
     }
   }
 
