@@ -27,8 +27,8 @@ export type AllocationParams = {
 
 export const DEFAULT_PARAMS: AllocationParams = {
   totalSupply: 10_000_000_000,
-  airdropPct: 0.25,
-  fdvUsd: 3_000_000_000,
+  airdropPct: 0.15,
+  fdvUsd: 9_000_000_000,
   floorTokens: 500,
   whaleAnchorTokens: 25_000,
   curveExponent: 1.5,
@@ -65,7 +65,7 @@ export const SCENARIOS: Record<
   base: {
     label: 'Base case',
     note: 'Default ✨. 25k $BASE cap sits between ARB (10k) and OP (27.5k) — feels earned, has precedent.',
-    fdvUsd: 3_000_000_000,
+    fdvUsd: 9_000_000_000,
     floorTokens: 500,
     whaleAnchorTokens: 25_000,
     farcasterBoostPct: 0.20,
