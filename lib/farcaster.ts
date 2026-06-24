@@ -13,7 +13,11 @@ export type FarcasterProfile = {
   displayName: string | null
   followerCount: number
   followingCount: number
-  powerBadge: boolean
+  // Neynar's 0..1 quality score. Higher = more established / less sybil-y.
+  // power_badge was deprecated; this replaces it as the "quality" signal.
+  qualityScore: number
+  // True if the account has an active Neynar Pro subscription (paid signal).
+  proSubscriber: boolean
   custodyAddress: string | null
   verifiedEthAddresses: string[]
   // Lower FID = earlier user. FID is incrementing, so it's a proxy for age.
@@ -80,7 +84,8 @@ export async function lookupFarcaster(
       displayName: user.display_name ?? null,
       followerCount: user.follower_count ?? 0,
       followingCount: user.following_count ?? 0,
-      powerBadge: !!user.power_badge,
+      qualityScore: typeof user.score === 'number' ? user.score : 0,
+      proSubscriber: user.pro?.status === 'subscribed',
       custodyAddress: user.custody_address?.toLowerCase() ?? null,
       verifiedEthAddresses,
       fidAgeBucket: bucketFid(user.fid),
@@ -114,23 +119,26 @@ export function scoreFarcaster(
   }
 
   const p = result.profile
-  const highSocial = p.powerBadge || p.followerCount >= 1_000
+  // High-quality signal: Neynar score ≥ 0.7 (their threshold for established
+  // accounts), an active Pro subscription, or ≥1k followers as a fallback.
+  const highSocial =
+    p.qualityScore >= 0.7 || p.proSubscriber || p.followerCount >= 1_000
   const earlyAdopter =
     p.fidAgeBucket === 'pre-launch' || p.fidAgeBucket === 'early'
 
   const handle = p.username ? `@${p.username}` : `FID ${p.fid}`
-  const badge = p.powerBadge ? '⚡' : ''
+  const badge = p.proSubscriber ? '✨' : ''
 
   if (earlyAdopter && highSocial) {
     return {
       value: 3,
-      display: `${handle} ${badge} · ${p.followerCount} followers · ${p.fidAgeBucket} FID`,
+      display: `${handle}${badge ? ' ' + badge : ''} · ${p.followerCount} followers · ${p.fidAgeBucket} FID`,
     }
   }
   if (highSocial) {
     return {
       value: 2,
-      display: `${handle} ${badge} · ${p.followerCount} followers`,
+      display: `${handle}${badge ? ' ' + badge : ''} · ${p.followerCount} followers`,
     }
   }
   return {
