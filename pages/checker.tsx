@@ -127,8 +127,18 @@ export default function CheckerPage() {
     if (identityTiers.size === 0) return result
     const override = result.metrics.find((m) => m.id === 'base_verify_identity')
     if (!override) return result
-    const labels = ['Verified Coinbase account', 'X Blue Checkmark', 'Coinbase One active']
-    const newValue = Math.max(...Array.from(identityTiers))
+    const tierLabels: Record<number, string> = {
+      1: 'Verified Coinbase account',
+      2: 'X Blue Checkmark',
+      3: 'Coinbase One active',
+    }
+    const selectedPts = Array.from(identityTiers)
+    const summed = selectedPts.reduce((a, b) => a + b, 0)
+    const newValue = Math.min(override.maxPoints, summed)
+    const labelText =
+      selectedPts.length === 1
+        ? tierLabels[selectedPts[0]] ?? override.tierLabel
+        : `${selectedPts.length} credentials self-reported`
     const delta = newValue - override.pointsEarned
     return {
       ...result,
@@ -138,7 +148,7 @@ export default function CheckerPage() {
               ...m,
               value: newValue,
               pointsEarned: newValue,
-              tierLabel: labels[newValue - 1] ?? m.tierLabel,
+              tierLabel: labelText,
               displayValue: 'Self-reported by you',
             }
           : m,
