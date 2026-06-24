@@ -283,8 +283,13 @@ export async function checkWallet(
   let neynarOk = false
   if (farcasterFidRaw && farcasterFidRaw.trim()) {
     farcasterProvided = true
-    const lookup = await lookupFarcaster(farcasterFidRaw.trim(), address)
-    const scored = scoreFarcaster(lookup)
+    // Also accept the Base App / Smart Wallet address as a candidate for the
+    // FID-linked check — many users keep their FID verified against that
+    // address rather than the wallet they're scoring.
+    const lookup = await lookupFarcaster(farcasterFidRaw.trim(), address, [
+      baseAppAddressRaw,
+    ])
+    const scored = scoreFarcaster(lookup, address)
     farcasterValue = scored.value
     farcasterDisplay = scored.display
     if (lookup.ok) {
@@ -294,7 +299,7 @@ export async function checkWallet(
       farcasterProfile = lookup.profile
       if (!lookup.walletLinked) {
         farcasterNote =
-          'FID provided but this wallet is not in its verified addresses. Ignored to prevent FID-claim abuse.'
+          'FID provided but neither this wallet nor the Base App address is in its verified addresses. Ignored to prevent FID-claim abuse.'
         warnings.push(farcasterNote)
       }
     } else {
