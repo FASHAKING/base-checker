@@ -236,7 +236,7 @@ export async function checkWallet(
     address,
     name: null,
     hasBasename: false,
-    isShortBasename: false,
+    handleLength: null,
   }
   let basenameOk = false
   try {
@@ -245,9 +245,26 @@ export async function checkWallet(
   } catch {
     warnings.push('Basename lookup failed (L1 ENS unreachable).')
   }
-  const basenameValue = basenameInfo.isShortBasename ? 2 : basenameInfo.hasBasename ? 1 : 0
+  // Basename scoring follows the official length-based pricing tiers:
+  //   3-4 chars  = 0.01-0.1 ETH (premium)            → 3 pts
+  //   5-9 chars  = 0.001 ETH (most common, paid)     → 2 pts
+  //   10+ chars  = 0.0001 ETH (effectively free)     → 1 pt (credit for owning)
+  let basenameValue = 0
+  if (basenameInfo.hasBasename) {
+    const len = basenameInfo.handleLength ?? 0
+    if (len > 0 && len <= 4) basenameValue = 3
+    else if (len >= 5 && len <= 9) basenameValue = 2
+    else basenameValue = 1
+  }
+  const basenameLengthSuffix = basenameInfo.hasBasename
+    ? basenameValue === 3
+      ? ' (3-4 char premium)'
+      : basenameValue === 2
+      ? ' (5-9 char)'
+      : ' (10+ char)'
+    : ''
   const basenameDisplay = basenameInfo.hasBasename
-    ? `${basenameInfo.name}${basenameInfo.isShortBasename ? ' (short ≤6)' : ''}`
+    ? `${basenameInfo.name}${basenameLengthSuffix}`
     : basenameInfo.name
     ? `Primary: ${basenameInfo.name} (not a Basename)`
     : 'No primary name set'

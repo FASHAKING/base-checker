@@ -108,8 +108,9 @@ export const CRITERIA: Criterion[] = [
       'zkSync crypto-native bonus (ENS holders)',
     ],
     tiers: [
-      { label: 'Owns a Basename', threshold: 1, points: 2 },
-      { label: 'Owns a short Basename (≤6 chars)', threshold: 2, points: 3 },
+      { label: 'Owns a Basename', threshold: 1, points: 1 },
+      { label: 'Owns a 5-9 char Basename', threshold: 2, points: 2 },
+      { label: 'Owns a 3-4 char premium Basename', threshold: 3, points: 3 },
     ],
   },
 ]

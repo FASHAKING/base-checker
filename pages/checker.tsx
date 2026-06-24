@@ -53,7 +53,7 @@ type Result = {
   basename: {
     name: string | null
     hasBasename: boolean
-    isShortBasename: boolean
+    handleLength: number | null
   }
   warnings: string[]
 }

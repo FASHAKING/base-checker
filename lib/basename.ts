@@ -92,7 +92,7 @@ export type BasenameInfo = {
   address: `0x${string}` | null
   name: string | null
   hasBasename: boolean
-  isShortBasename: boolean
+  handleLength: number | null
 }
 
 // Forward resolution: name → address.
@@ -134,7 +134,7 @@ export async function lookupBasename(address: `0x${string}`): Promise<BasenameIn
     address,
     name: null,
     hasBasename: false,
-    isShortBasename: false,
+    handleLength: null,
   }
 
   const key = `addr:${address.toLowerCase()}`
@@ -204,6 +204,6 @@ function applyName(info: BasenameInfo, name: string) {
   if (name.toLowerCase().endsWith('.base.eth')) {
     info.hasBasename = true
     const handle = name.replace(/\.base\.eth$/i, '')
-    info.isShortBasename = handle.length > 0 && handle.length <= 6
+    info.handleLength = handle.length > 0 ? handle.length : null
   }
 }
