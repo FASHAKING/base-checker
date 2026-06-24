@@ -100,11 +100,6 @@ export default function CheckerPage() {
   const totalSupply = supplyB * 1_000_000_000
   const fdvUsd = fdvB * 1_000_000_000
 
-  const applyPreset = (preset: { fdv: number; supply: number; pct: number }) => {
-    setFdvB(preset.fdv)
-    setSupplyB(preset.supply)
-    setAirdropPct(preset.pct)
-  }
   const allocParams = {
     ...DEFAULT_PARAMS,
     totalSupply,
@@ -464,25 +459,6 @@ export default function CheckerPage() {
                     {formatCompactNumber(poolTokens)}
                   </div>
                 </div>
-              </div>
-
-              {/* Preset chips */}
-              <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-                <PresetChip
-                  label="Conservative"
-                  active={fdvB === 1 && supplyB === 10 && airdropPct === 10}
-                  onClick={() => applyPreset({ fdv: 1, supply: 10, pct: 10 })}
-                />
-                <PresetChip
-                  label="Base case"
-                  active={fdvB === 12 && supplyB === 10 && airdropPct === 12}
-                  onClick={() => applyPreset({ fdv: 12, supply: 10, pct: 12 })}
-                />
-                <PresetChip
-                  label="Bullish"
-                  active={fdvB === 8 && supplyB === 10 && airdropPct === 30}
-                  onClick={() => applyPreset({ fdv: 8, supply: 10, pct: 30 })}
-                />
               </div>
 
               {/* Sliders */}
@@ -1500,37 +1476,6 @@ function SliderRow({
         style={{ width: '100%', accentColor: C.accent, display: 'block' }}
       />
     </div>
-  )
-}
-
-function PresetChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      type="button"
-      style={{
-        padding: '0.4rem 0.85rem',
-        background: active ? C.accent : 'transparent',
-        color: active ? 'white' : C.textMute,
-        border: `1px solid ${active ? C.accent : C.border}`,
-        borderRadius: 999,
-        fontSize: '0.72rem',
-        fontWeight: 700,
-        letterSpacing: '0.02em',
-        cursor: 'pointer',
-        transition: 'all 0.15s ease',
-      }}
-    >
-      {label}
-    </button>
   )
 }
 
