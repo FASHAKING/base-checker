@@ -94,8 +94,8 @@ export default function CheckerPage() {
 
   // Tunable economics — sliders in billions
   const [supplyB, setSupplyB] = useState(10)
-  const [fdvB, setFdvB] = useState(12)
-  const [airdropPct, setAirdropPct] = useState(12)
+  const [fdvB, setFdvB] = useState(9)
+  const [airdropPct, setAirdropPct] = useState(15)
 
   const totalSupply = supplyB * 1_000_000_000
   const fdvUsd = fdvB * 1_000_000_000
