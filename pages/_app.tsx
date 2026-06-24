@@ -1,6 +1,7 @@
 import type { AppProps } from 'next/app'
 import dynamic from 'next/dynamic'
 import '@coinbase/onchainkit/styles.css'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 import { ToastProvider } from '../components/ToastProvider'
 
@@ -28,6 +29,7 @@ export default function App({ Component, pageProps }: AppProps) {
           <Component {...pageProps} />
         </ToastProvider>
       </Providers>
+      <SpeedInsights />
     </>
   )
 }
