@@ -94,8 +94,8 @@ export default function CheckerPage() {
 
   // Tunable economics — sliders in billions
   const [supplyB, setSupplyB] = useState(10)
-  const [fdvB, setFdvB] = useState(3)
-  const [airdropPct, setAirdropPct] = useState(25)
+  const [fdvB, setFdvB] = useState(12)
+  const [airdropPct, setAirdropPct] = useState(12)
 
   const totalSupply = supplyB * 1_000_000_000
   const fdvUsd = fdvB * 1_000_000_000
@@ -475,8 +475,8 @@ export default function CheckerPage() {
                 />
                 <PresetChip
                   label="Base case"
-                  active={fdvB === 3 && supplyB === 10 && airdropPct === 25}
-                  onClick={() => applyPreset({ fdv: 3, supply: 10, pct: 25 })}
+                  active={fdvB === 12 && supplyB === 10 && airdropPct === 12}
+                  onClick={() => applyPreset({ fdv: 12, supply: 10, pct: 12 })}
                 />
                 <PresetChip
                   label="Bullish"
