@@ -74,8 +74,8 @@ Both floor and cap exist because every successful L2 drop bounded allocations on
 | Parameter | Default | How we got there |
 |---|---|---|
 | **Total supply** | **10,000,000,000 $BASE** | Matches ARB, STRK, and JUP — the standard L2/major-token supply. Keeps token price sub-$1, which is realistic for L2 launches and avoids the optics problem of a "premium" launch price. |
-| **FDV at launch** | **$3,000,000,000** | Sits between JUP ($6.5B) and ZK ($5B). With 10B supply this implies **$0.30/token**, in line with ZK ($0.22) and JUP ($0.65). |
-| **Airdrop %** | 10% | Mean of ARB 11.62% / OP 5% / ZK 17.5% / ZRO 8.5%. |
+| **FDV at launch** | **$9,000,000,000** | Above JUP ($6.5B) and ZK ($5B), closer to OP ($8B) territory. With 10B supply this implies **$0.90/token**. |
+| **Airdrop %** | 15% | Closer to ZK's 17.5% than ARB's 11.62% — reflects Base's larger active-user base and identity-layer reach. |
 | **Curve exponent** | 1.5 | Mild whale skew; a 50%-score user gets ~35% of whale tokens. ARB's actual curve was closer to 1.8. |
 | **Farcaster boost** | 20% | Multiplicative bonus when FID is linked. 0% (no penalty) without. |
 
@@ -85,9 +85,9 @@ Calibrated against actual L2 launches: ARB ($1.40 launch / $14B FDV → $0.40 no
 
 | Scenario | FDV | Token price | Floor | Cap | Whale USD |
 |---|---|---|---|---|---|
-| **Bear** | $1B | $0.10 | 250 | 10,000 | ~$1,000 |
-| **Base case** | $3B | $0.30 | 500 | 25,000 | ~$7,500 |
-| **Bull** | $6B | $0.60 | 1,000 | 50,000 | ~$30,000 |
+| **Bear** | $3B | $0.30 | 250 | 10,000 | ~$3,000 |
+| **Base case** | $9B | $0.90 | 500 | 25,000 | ~$22,500 |
+| **Bull** | $15B | $1.50 | 1,000 | 50,000 | ~$75,000 |
 
 ### Allocation formula
 
@@ -116,16 +116,16 @@ userUsd    = userTokens × tokenPrice
 
 ### Default math walk-through
 
-With base case defaults (10B supply, $3B FDV, $0.30/token, floor 500, cap 25,000, exponent 1.5):
+With base case defaults (10B supply, $9B FDV, $0.90/token, floor 500, cap 25,000, exponent 1.5):
 
-| Score % | After clamp | USD @ $0.30 |
+| Score % | After clamp | USD @ $0.90 |
 |---|---|---|
 | 0% (fails eligibility) | 0 $BASE | $0 |
-| ~6% (kink) | 500 $BASE (floor) | $150 |
-| 25% | 3,125 $BASE | $938 |
-| 50% | 8,839 $BASE | $2,652 |
-| 75% | 16,238 $BASE | $4,871 |
-| 100% | 25,000 $BASE (cap) | $7,500 |
-| 100% + max Farcaster boost | 25,000 $BASE (cap) | $7,500 |
+| ~6% (kink) | 500 $BASE (floor) | $450 |
+| 25% | 3,125 $BASE | $2,813 |
+| 50% | 8,839 $BASE | $7,955 |
+| 75% | 16,238 $BASE | $14,614 |
+| 100% | 25,000 $BASE (cap) | $22,500 |
+| 100% + max Farcaster boost | 25,000 $BASE (cap) | $22,500 |
 
 Anyone below ~6% of max gets the floor. Above that they scale up the curve. At 100% they hit the cap — even Farcaster boosters get clamped there.
