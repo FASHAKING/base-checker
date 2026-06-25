@@ -1,5 +1,4 @@
 import { Html, Head, Main, NextScript } from 'next/document'
-import { ErudaProvider } from '../components/ErudaProvider'
 import { config } from '../lib/config'
 
 export default function Document() {
@@ -8,8 +7,6 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        <ErudaProvider />
-        
         {/* Favicon */}
         <link rel="icon" type="image/png" href="/icon.png" />
         <link rel="shortcut icon" type="image/png" href="/icon.png" />
